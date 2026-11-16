@@ -3,7 +3,7 @@
 const METHOD_REFERENCES=Object.freeze([
  {id:'causalpfn',domains:['ate','cate'],names:['CausalPFN'],paper:{url:'https://proceedings.neurips.cc/paper_files/paper/2025/hash/e3d3db07c1bfb63e1d0b998996de1d12-Abstract-Conference.html',title:'CausalPFN: Amortized Causal Effect Estimation via In-Context Learning',citation:'Balazadeh Meresht et al. (2025). Advances in Neural Information Processing Systems 38.'},huggingface:{url:'https://huggingface.co/vdblm/causalpfn',title:'vdblm/causalpfn'}},
  {id:'proximalfm',domains:['proximal'],names:['ProximalFM'],paper:{url:'https://arxiv.org/abs/2610.08078v2',title:'ProximalFM: Amortized Proximal Causal Inference under Hidden Confounding',citation:'Muller et al. (2026). arXiv:2610.08078v2.'}},
- {id:'medipfn',domains:['mediation'],names:['MediPFN']},
+ {id:'medipfn',domains:['mediation'],names:['MediPFN'],huggingface:{url:'https://huggingface.co/shibo769/MediPFN',title:'shibo769/MediPFN'},source:'Hyperlink embedded in page 2, Reproducibility, of MediPFN_Arena_Fivefold_Report_2026-11-16.pdf. Released checkpoint; evaluation uses a separate five-fold wrapper.'},
  {id:'iv-pfn-v02',domains:['iv'],names:['PFN','IV-PFN']},
  {id:'did-directatt',domains:['did_sc'],names:['DirectATT S1','DirectATT S2','DirectATT']},
  {id:'did-ps-or-dr',domains:['did_sc'],names:['PS/OR-DR S1','PS/OR-DR S2','PS/OR-DR']}
