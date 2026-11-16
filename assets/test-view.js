@@ -17,7 +17,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
 const METRICS=[
  {key:'bias',label:'Bias',hint:'Closer to zero',detail:'Signed estimation error. Sorting uses absolute bias.'},
- {key:'variance',label:'Variance',hint:'See variance definition',detail:'The source-defined variance, not standard error. Check the evaluation notes.'},
+ {key:'variance',label:'Variance',hint:'',detail:'Source-reported variance; not standard error.'},
  {key:'rmse',label:'RMSE',hint:'Lower is better',detail:'Root mean squared error, for this target and evaluation only.'},
  {key:'length',label:'Length',hint:'Read with coverage',detail:'Mean confidence interval length; smaller alone does not imply better inference.'},
  {key:'coverage',label:'Coverage',hint:'Nominal 95%',detail:'Empirical coverage; higher is not automatically better. Sorting uses distance from the nominal level.'},
@@ -105,9 +105,19 @@ function formatMetric(r,k){
  return approx+(v<0?'−':k==='bias'&&v>0?'+':'')+value;
 }
 function primaryRef(row){return ArenaMethodReferences.primary(ArenaMethodReferences.lookup(task,row));}
+// Display metadata only: keep the full configurations in source data and CSV.
+// Fold labels are explicitly scoped to the evaluated release, not guessed from a model name.
+const FIVE_FOLD_RELEASES=Object.freeze({
+ 'mediation-fivefold-2026-11-16':'MediPFN',
+ 'did-test-2026-11-16':'PFN-DiD',
+ 'proximal-unified-2026-11-16-normalized':'ProximalFM',
+ 'proximal-unified-2026-11-16-original':'ProximalFM'
+});
 function methodCell(r){
+ if(r.family==='classical')return '<span class="mname">RF + bootstrap</span>';
  const ref=primaryRef(r),name=ref?`<a class="method-ref-name" href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${esc(r.method)}</a>`:esc(r.method);
- return `<span class="mname">${name}</span>${r.configuration?`<span class="method-config">${esc(r.configuration)}</span>`:''}${ref?`<a class="method-ref-label" href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${ref.label} ↗</a>`:''}`;
+ const folds=FIVE_FOLD_RELEASES[current()?.id]===r.method?'5-fold':'';
+ return `<span class="mname">${name}</span>${folds?`<span class="method-config">${folds}</span>`:''}${ref?`<a class="method-ref-label" href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${ref.label} ↗</a>`:''}`;
 }
 function sortedRows(key){
  const rr=[...visibleRows()];if(!sorts[key])return rr;
@@ -123,8 +133,10 @@ function renderMetrics(){
   return `<article class="metric-card" data-metric="${m.key}"><div class="metric-head"><h3>${label}</h3><p>${hint}</p></div><table><caption class="sr-only">${esc(task)} Test ${label}</caption><thead><tr><th scope="col">Method</th><th scope="col" class="r" aria-sort="${sorts[m.key]===1?'ascending':sorts[m.key]===-1?'descending':'none'}"><button data-sort="${m.key}" title="${esc(m.detail)}">Test ${sorts[m.key]===1?'↑':sorts[m.key]===-1?'↓':'↕'}</button></th></tr></thead><tbody>${rs.length?rs.map(r=>`<tr data-method="${esc(r.source_method)}"><td>${methodCell(r)}</td><td class="r num" title="${esc(r.status==='not_reported'?'Not reported for this method':r.approximate_metrics?.includes(m.key)?'Approximate aggregation of rounded source summaries':m.key==='variance'&&!finite(r[m.key])?'Pooled variance convention not established':'Reported value')}">${formatMetric(r,m.key)}</td></tr>`).join(''):`<tr><td colspan="2" class="empty-cell">${s&&!loadError?'No methods match the filters.':empty}</td></tr>`}</tbody></table></article>`;
  }).join('');
  $('#export-btn').disabled=!visibleRows().some(r=>r.status!=='not_reported');
- $('#table-note').textContent=s?(s.derived?'≈ indicates an approximate reconstruction from rounded source summaries. Aggregation is documented below; missing values are not filled in.':'Directly reported pooled Test results. Variance is transcribed from the report, not reconstructed from SE.')+' Coverage is compared with its nominal level; runtime is not a matched-hardware speed comparison.':'';
- $('#exception-note').hidden=!s?.notes?.length;$('#exception-note').textContent=s?.notes?.join(' ')||'';
+ const shown=visibleRows(),notes=[];
+ if(shown.some(r=>r.approximate_metrics?.length))notes.push('≈ Approximate value.');
+ if(shown.some(r=>metricKeys.some(k=>!finite(r[k]))))notes.push('— Not reported.');
+ $('#table-note').textContent=notes.join(' ');$('#table-note').hidden=!notes.length;
  renderReferences();
 }
 function renderReferences(){
@@ -134,18 +146,6 @@ function renderReferences(){
   const ref=ArenaMethodReferences.primary(source),hf=ArenaMethodReferences.safeURL(source?.huggingface?.url,'huggingface');
   return `<div class="reference-entry"><strong>${esc(r.method)}</strong>${ref?`<a class="reference-title" href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${esc(ref.title)} ↗</a><p>${esc(ref.citation||'Hugging Face model card')}</p>${hf&&ref.label==='Paper'?`<a class="reference-secondary" href="${esc(hf)}" target="_blank" rel="noopener noreferrer">Model on Hugging Face ↗</a>`:''}`:'<p>Method-specific paper or Hugging Face link not yet provided.</p>'}</div>`;
  }).join('')+'<p class="reference-note">Method references identify the model, not the source of these benchmark scores.</p>';
-}
-function renderDetails(){
- const s=current();$('#test-protocol').hidden=!s;$('#dgp-details').hidden=!s?.dgp_results?.length;
- if(!s){$('#protocol-content').innerHTML='';$('#dgp-content').innerHTML='';return;}
- const source=s.source||{},parts=[['Source',source.title+' · '+source.file+(source.date?' · '+source.date:'')],['Aggregation',s.aggregation],['Variance',s.variance_definition],['Protocol',s.protocol],['Timing',s.timing],['Limitations',s.caveat]];
- $('#protocol-content').innerHTML=parts.filter(([,v])=>v).map(([k,v])=>`<p><strong>${k}</strong>${esc(v)}</p>`).join('')+`<p><a href="${esc(s.data_file||(s.domain==='mediation'?'data/mediation-fivefold.json':'data/results.json'))}" target="_blank" rel="noopener noreferrer">Open source result data ↗</a></p>`;
- if(!s.dgp_results?.length)return;
- const keys=s.detail_metrics||['bias','reported_se','rmse','length','coverage','time_s'];
- const labels={bias:'Bias',reported_se:'SE',variance:'Variance',rmse:'RMSE',length:'Length',coverage:'Coverage',time_s:'Time (s)'};
- const showCounts=s.dgp_results.every(r=>Number.isInteger(r.tables));
- const note=s.dgp_note||'Transcribed from Tables 3–4. This source table reports SE (not Variance). No per-configuration values are used to reconstruct the directly reported Test summary.';
- $('#dgp-content').innerHTML='<p class="test-detail-note">'+esc(note)+'</p><div class="dgp-scroll"><table><thead><tr><th>Configuration</th><th>Method</th>'+(showCounts?'<th class="r">N</th>':'')+keys.map(k=>'<th class="r">'+labels[k]+'</th>').join('')+'</tr></thead><tbody>'+s.dgp_results.map(r=>'<tr><td>'+esc(r.dgp)+'</td><td>'+esc(r.method)+'</td>'+(showCounts?'<td class="r num">'+r.tables+'</td>':'')+keys.map(k=>'<td class="r num">'+formatMetric(r,k)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
 }
 function render(){
  const d=DOMAINS.find(d=>d.id===task),s=current(),available=domainSuites();
@@ -157,7 +157,7 @@ function render(){
  $('#release-status').textContent=loadError?'RESULTS UNAVAILABLE':loaded?'TEST RESULTS':'LOADING RESULTS';
  $('#release-description').textContent=loadError||'Six metrics, presented as tables. Methods retain their own names and references.';
  $('#registry-link').href='https://github.com/Statsinference/stats-inference-arena/blob/main/dgp-submissions/registry/by-domain/'+task+'.md';
- renderMetrics();renderDetails();document.body.dataset.testView=loaded?'ready':'loading';
+ renderMetrics();document.body.dataset.testView=loaded?'ready':'loading';
 }
 function readHash(){const p=new URLSearchParams(location.hash.slice(1));if(DOMAINS.some(d=>d.id===p.get('domain')))task=p.get('domain');suiteId=p.get('suite')||'';}
 function writeHash(){const p=new URLSearchParams({domain:task});if(suiteId)p.set('suite',suiteId);try{history.replaceState(null,'','#'+p);}catch(_){}}

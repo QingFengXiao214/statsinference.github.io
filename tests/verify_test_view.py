@@ -1,4 +1,4 @@
-"""Verify deployed Test tables against the supplied DiD/Proximal reports.
+"""Verify compact Test tables and unchanged source results.
 Use ARENA_TEST_URL=local for a local render; the CI default verifies GitHub Pages.
 Never execute a DGP or change reported metrics.
 """
@@ -108,6 +108,16 @@ with sync_playwright() as p:
     for domain in ['ate', 'cate', 'mediation', 'iv', 'proximal', 'did_sc', 'nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']:
         page.locator('[data-t="' + domain + '"]').click()
         assert page.locator('.metric-card').count() == 6 and page.locator('#main-panel svg').count() == 0
+        assert page.locator('#test-protocol, #dgp-details, #protocol-content, #dgp-content, #exception-note').count() == 0
+        assert all(t == '5-fold' for t in page.locator('.method-config').all_inner_texts())
+        body_text = page.locator('body').inner_text()
+        for removed in ['bootstrap-SE normal interval', 'IF normal interval', 'Proximal series-IV/GMM', 'Five-context distribution mixture', 'Evaluation details & aggregation', 'Per-configuration results', 'B = 50', 'B = 100', 'B = 200']:
+            assert removed not in body_text, (domain, removed)
+        for cell in page.locator('#metric-tables td:first-child').all():
+            if cell.locator('.mname').count() and cell.locator('.mname').inner_text() == 'RF + bootstrap':
+                assert cell.inner_text().strip() == 'RF + bootstrap'
+                assert cell.locator('a, .method-config').count() == 0
+        assert page.locator('.method-config').count() == (6 if domain in ['mediation', 'proximal', 'did_sc'] else 0)
         if domain in ['ate', 'cate', 'mediation', 'proximal', 'did_sc']:
             assert page.locator('.method-ref-name').count() == 6
         if domain in ['nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']:
@@ -121,11 +131,7 @@ with sync_playwright() as p:
     assert page.locator('[data-metric="rmse"] tbody tr').count() == 2
     hf = 'https://huggingface.co/lisuo/PFN-DiD/tree/b7ab973ce6142e3bf34e11aa6db66b3bc5fc5c6a'
     assert page.locator('.method-ref-name').first.get_attribute('href') == hf
-    assert page.locator('#dgp-details').is_hidden()
-    page.locator('#test-protocol').evaluate('(el)=>el.open=true')
-    assert 'not a percentile interval' in page.locator('#protocol-content').inner_text()
-    assert page.locator('#protocol-content a').get_attribute('href') == 'data/unified-test-2026-11-16.json'
-    page.locator('#test-protocol').evaluate('(el)=>el.open=false')
+    assert page.locator('#test-protocol, #dgp-details, #protocol-content, #dgp-content').count() == 0
     page.locator('#table').screenshot(path=str(out / 'did-test-tables.png'))
     with page.expect_download() as download:
         page.locator('#export-btn').click()
@@ -143,19 +149,14 @@ with sync_playwright() as p:
         assert v in norm_text, v
     assert '≈' not in norm_text and 'B = 200' not in norm_text
     assert page.locator('.method-ref-name').first.get_attribute('href') == 'https://arxiv.org/abs/2610.08078v2'
-    page.locator('#dgp-details').evaluate('(el)=>el.open=true')
-    assert page.locator('#dgp-content tbody tr').count() == 8
-    assert 'Variance' in page.locator('#dgp-content thead').inner_text()
-    assert 'SE' not in page.locator('#dgp-content th').all_text_contents()
-    assert '89.61%' in page.locator('#dgp-content').inner_text()
-    page.locator('#dgp-details').evaluate('(el)=>el.open=false')
+    assert page.locator('#test-protocol, #dgp-details').count() == 0
     page.locator('#table').screenshot(path=str(out / 'proximal-normalized-tables.png'))
     page.locator('#suite-select').select_option('proximal-unified-2026-11-16-original')
     raw_text = page.locator('#metric-tables').inner_text()
     for v in ['+0.0895', '+0.0454', '0.1955', '11.7071', '0.4511', '3.4210', '1.5574', '2.9586']:
         assert v in raw_text, v
     assert 'normalized' not in raw_text
-    assert '34.1062' in page.locator('#dgp-content').text_content()
+    assert '34.1062' not in page.locator('#main-panel').inner_text()
     page.locator('#table').screenshot(path=str(out / 'proximal-original-tables.png'))
     with page.expect_download() as download:
         page.locator('#export-btn').click()
@@ -174,7 +175,7 @@ with sync_playwright() as p:
     page.locator('[data-sort="rmse"]').click()
     assert page.locator('[data-metric="rmse"] tbody tr').first.get_attribute('data-method') == 'ProximalFM'
     page.locator('[data-t="mediation"]').click()
-    assert 'SE' in page.locator('#dgp-content th').all_text_contents()
+    assert page.locator('#dgp-content').count() == 0
     page.locator('#theme-btn').click()
     assert page.locator('html').get_attribute('data-theme') == 'dark'
 
@@ -194,7 +195,7 @@ with sync_playwright() as p:
     assert mobile.evaluate('document.documentElement.scrollWidth <= innerWidth')
     mobile.screenshot(path=str(out / 'unified-test-mobile.png'), full_page=True)
     assert not errors, errors
-    report = {'status': 'passed', 'commit': sha, 'url': base, 'tables_per_domain': 6, 'populated_domains': 6, 'suites': 7, 'chart_count': 0, 'new_direct_report_suites': list(expected_values), 'new_proximal_detail_rows': 16, 'pfn_did_reference': hf, 'javascript_errors': errors}
+    report = {'status': 'passed', 'commit': sha, 'url': base, 'tables_per_domain': 6, 'populated_domains': 6, 'suites': 7, 'chart_count': 0, 'new_direct_report_suites': list(expected_values), 'source_proximal_detail_rows': 16, 'technical_sections_in_dom': 0, 'rf_config_labels': 0, 'pfn_did_reference': hf, 'javascript_errors': errors}
     (out / 'test-view-report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     browser.close()
