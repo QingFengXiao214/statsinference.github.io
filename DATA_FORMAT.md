@@ -1,15 +1,21 @@
-# Leaderboard results
+# Leaderboard result format
 
-`data/results.json` starts empty on purpose. Do not add simulated results or publish unapproved experiments.
+`data/results.json` contains approved, source-reported summaries. Domains without results remain empty. Do not add simulated results or unapproved experiments.
 
-Each `suites` entry represents one comparable evaluation suite with a unique `id`, a `domain`, a human-readable `label`, an explicit `target` (estimand), and a `rows` array. Optional metadata: `sample_size`, `nominal_coverage` (fraction in (0, 1)), `aggregation`, `hardware`, and `timing_scope`.
+Each `suites` entry represents one comparable evaluation suite with a unique `id`, a `domain`, a `label`, an explicit `target` (estimand) and a `rows` array. Optional metadata includes `sample_size`, `nominal_coverage`, `aggregation`, `hardware`, `timing_scope` and source provenance.
 
 Domain IDs: `ate`, `cate`, `mediation`, `iv`, `proximal`, `did_sc`, `nonparametric_regression`, `quantile`, `semi_supervised`, `missing_data`.
 
-Each row uses `group` (`ID` or `OOD`), `method`, `method_id` (recommended), `family` (`pfn` or `classical`), optional `org`, and the metrics `bias`, `variance`, `rmse`, `length`, `coverage`, `time_s`. Metrics must be finite numbers or null; all except bias must be nonnegative. Coverage uses a fraction between 0 and 1, not percentage points. Unknown metrics are null, never zero. Variance is not SE. Use distinct method IDs for distinct configurations.
+Each row uses `group` (`ID` or `OOD`), `method`, `method_id`, `family` (`pfn` or `classical`), and metrics `bias`, `variance`, `rmse`, `length`, `coverage`, `time_s`. Values are finite numbers or null. All except bias are nonnegative. Coverage is a fraction in [0,1]. Unknown values are null, never zero. Variance is not SE. Distinct configurations use distinct method IDs.
 
-The page reads this JSON without building. It does not compute or invent metrics. Methods are sorted within their own split and evaluation suite; ID and OOD are never averaged. Different estimands belong in separate suites. Explain the reference training stage and held-out units of an OOD split in release metadata.
+`status: "not_reported"` marks an unavailable comparison row; all six metrics must be null. Such rows do not enter rankings or plots. Exports retain this status.
 
-## Local use
+When `variance_basis` is `square_of_rounded_reported_se`, `variance_is_approximate` is true and `reported_se` is preserved. Display the value with ≈ and explain the conversion. It is not an exact raw empirical variance. Do not reconstruct RMSE from aggregate Bias and Variance.
 
-Run `python3 -m http.server 8000` in this directory. The public site consists of `index.html`, `assets/`, and `data/`. Never place private archives, datasets, tokens, or unpublished experimental results anywhere in this public repository.
+`dgp_results` contains independently transcribed per-configuration rows. Do not recompute aggregates from rounded per-DGP results. `timing_comparisons` uses an explicit historical cohort with `scope: "previous_model_and_test_set"`; these CPU measurements do not enter current ID/OOD rankings or plots. Copy `median_paired_ratio` from its source, not from ratios of displayed median times.
+
+`source` records report title, author, date, filename and page/table locators. Only the approved summaries are public; the internal PDF is not included. OOD metadata must identify the reference training stage and held-out units.
+
+The inline `results-data` JSON in `index.html` must equal the external JSON. The live website refreshes from the external file. Tests check their agreement and the separation of measurement cohorts.
+
+For local viewing, run `python3 -m http.server 8000`. Never place private datasets, archives, credentials or unpublished results in this public repository.
