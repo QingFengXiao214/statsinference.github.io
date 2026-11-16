@@ -51,11 +51,13 @@ function displayIdentity(domain,r){
  const seed=r.method.match(/ S([12])$/);
  return {method:seed?r.method.replace(/ S[12]$/,''):r.method,configuration:seed?'Training seed '+seed[1]:''};
 }
-function buildTestSuites(raw,med){
+function buildTestSuites(raw,med,updates){
  if(raw.schema_version!==1||!Array.isArray(raw.suites)||med.domain!=='mediation')throw Error('Invalid result data');
- const result=[{...med,summary_kind:'Reported pooled Test results',notes:[],derived:false}];
+ if(updates?.schema_version!==1||!Array.isArray(updates.suites))throw Error('Invalid unified Test data');
+ const replaced=new Set(updates.suites.map(s=>s.domain));
+ const result=[{...med,summary_kind:'Reported pooled Test results',notes:[],derived:false},...updates.suites];
  for(const source of raw.suites){
-  if(source.domain==='mediation')continue;
+  if(source.domain==='mediation'||replaced.has(source.domain))continue;
   const s={id:source.id,domain:source.domain,label:source.domain==='proximal'?(source.metric_scale==='normalized'?'Normalized units':'Original units'):source.label,target:source.target,sample_size:source.sample_size,tables:2000,nominal_coverage:source.nominal_coverage,metric_scale:source.metric_scale,source:source.source,variance_definition:source.variance_definition,timing:source.hardware+'. '+source.timing_scope,protocol:source.comparison_note,rows:[],notes:[],derived:true,summary_kind:'Test summary · derived from rounded source results'};
   s.aggregation='Two equally weighted 1,000-table evaluation groups are combined. Mean metrics retain each source group’s internal weighting; RMSE is the square root of the weighted mean of squared RMSEs. Values marked ≈ are reconstructed from rounded report summaries, not a new evaluation.';
   if(['ate','cate'].includes(s.domain))s.aggregation+=' Each original group retains its DGP-balanced weights; this is not a uniform weighting of all 13 configurations.';
@@ -98,7 +100,7 @@ function formatMetric(r,k){
  const v=r[k];if(!finite(v))return '—';
  const approx=r.approximate_metrics?.includes(k)?'≈':'';
  if(k==='coverage')return approx+(v*100).toFixed(2)+'%';
- const a=Math.abs(v),digits=k==='time_s'?(current()?.domain==='mediation'?2:a<.1?4:3):4;
+ const a=Math.abs(v),digits=current()?.display_precision?.[k]??(k==='time_s'?(current()?.domain==='mediation'?2:a<.1?4:3):4);
  const value=a!==0&&(a>=10000||a<.0001)?a.toExponential(2):a.toFixed(digits);
  return approx+(v<0?'−':k==='bias'&&v>0?'+':'')+value;
 }
@@ -137,10 +139,13 @@ function renderDetails(){
  const s=current();$('#test-protocol').hidden=!s;$('#dgp-details').hidden=!s?.dgp_results?.length;
  if(!s){$('#protocol-content').innerHTML='';$('#dgp-content').innerHTML='';return;}
  const source=s.source||{},parts=[['Source',source.title+' · '+source.file+(source.date?' · '+source.date:'')],['Aggregation',s.aggregation],['Variance',s.variance_definition],['Protocol',s.protocol],['Timing',s.timing],['Limitations',s.caveat]];
- $('#protocol-content').innerHTML=parts.filter(([,v])=>v).map(([k,v])=>`<p><strong>${k}</strong>${esc(v)}</p>`).join('')+`<p><a href="${s.domain==='mediation'?'data/mediation-fivefold.json':'data/results.json'}" target="_blank" rel="noopener noreferrer">Open source result data ↗</a></p>`;
+ $('#protocol-content').innerHTML=parts.filter(([,v])=>v).map(([k,v])=>`<p><strong>${k}</strong>${esc(v)}</p>`).join('')+`<p><a href="${esc(s.data_file||(s.domain==='mediation'?'data/mediation-fivefold.json':'data/results.json'))}" target="_blank" rel="noopener noreferrer">Open source result data ↗</a></p>`;
  if(!s.dgp_results?.length)return;
- const keys=['bias','reported_se','rmse','length','coverage','time_s'];
- $('#dgp-content').innerHTML='<p class="test-detail-note">Transcribed from Tables 3–4. This source table reports SE (not Variance). No per-configuration values are used to reconstruct the directly reported Test summary.</p><div class="dgp-scroll"><table><thead><tr><th>Configuration</th><th>Method</th>'+['Bias','SE','RMSE','Length','Coverage','Time (s)'].map(x=>'<th class="r">'+x+'</th>').join('')+'</tr></thead><tbody>'+s.dgp_results.map(r=>'<tr><td>'+esc(r.dgp)+'</td><td>'+esc(r.method)+'</td>'+keys.map(k=>'<td class="r num">'+formatMetric(r,k)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+ const keys=s.detail_metrics||['bias','reported_se','rmse','length','coverage','time_s'];
+ const labels={bias:'Bias',reported_se:'SE',variance:'Variance',rmse:'RMSE',length:'Length',coverage:'Coverage',time_s:'Time (s)'};
+ const showCounts=s.dgp_results.every(r=>Number.isInteger(r.tables));
+ const note=s.dgp_note||'Transcribed from Tables 3–4. This source table reports SE (not Variance). No per-configuration values are used to reconstruct the directly reported Test summary.';
+ $('#dgp-content').innerHTML='<p class="test-detail-note">'+esc(note)+'</p><div class="dgp-scroll"><table><thead><tr><th>Configuration</th><th>Method</th>'+(showCounts?'<th class="r">N</th>':'')+keys.map(k=>'<th class="r">'+labels[k]+'</th>').join('')+'</tr></thead><tbody>'+s.dgp_results.map(r=>'<tr><td>'+esc(r.dgp)+'</td><td>'+esc(r.method)+'</td>'+(showCounts?'<td class="r num">'+r.tables+'</td>':'')+keys.map(k=>'<td class="r num">'+formatMetric(r,k)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
 }
 function render(){
  const d=DOMAINS.find(d=>d.id===task),s=current(),available=domainSuites();
@@ -177,4 +182,4 @@ $('#share-btn').addEventListener('click',async()=>{try{if(navigator.share)await 
 window.addEventListener('hashchange',()=>{readHash();render();});
 window.ArenaTestView=Object.freeze({aggregateRows,getSuites:()=>testSuites,metrics:metricKeys});
 readHash();render();
-Promise.all(['data/results.json','data/mediation-fivefold.json'].map(path=>fetch(path+'?view=test-1',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('Result data request failed');return r.json();}))).then(([raw,med])=>{testSuites=buildTestSuites(raw,med);loaded=true;render();}).catch(e=>{loaded=true;loadError='Could not load Test results. Please refresh or contact the maintainers.';render();console.error(e);});
+Promise.all(['data/results.json','data/mediation-fivefold.json','data/unified-test-2026-11-16.json'].map(path=>fetch(path+'?view=unified-2',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('Result data request failed');return r.json();}))).then(([raw,med,updates])=>{testSuites=buildTestSuites(raw,med,updates);loaded=true;render();}).catch(e=>{loaded=true;loadError='Could not load Test results. Please refresh or contact the maintainers.';render();console.error(e);});
