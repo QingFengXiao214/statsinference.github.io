@@ -1,4 +1,4 @@
-"""Verify compact Test tables and unchanged source results.
+"""Verify compact Test tables and directly reported ATE/CATE results.
 Use ARENA_TEST_URL=local for a local render; the CI default verifies GitHub Pages.
 Never execute a DGP or change reported metrics.
 """
@@ -16,11 +16,13 @@ from playwright.sync_api import sync_playwright
 root = Path(__file__).resolve().parents[1]
 out = root / 'verification'
 out.mkdir(exist_ok=True)
-sha = os.environ.get('GITHUB_SHA', 'did-proximal-unified-2026-11-16')
+sha = os.environ.get('GITHUB_SHA', 'ate-cate-fixed-collection')
 base = os.environ.get('ARENA_TEST_URL', 'https://statsinference.github.io/')
 expected_data = json.loads((root / 'data/unified-test-2026-11-16.json').read_text())
 keys = ['bias', 'variance', 'rmse', 'length', 'coverage', 'time_s']
 expected_values = {
+    'ate-fixed-collection-report': [[.0119, .0097, .1114, .2599, .7763, 1.089], [-.0167, .0137, .1284, .5897, .9675, 90.490]],
+    'cate-fixed-collection-report': [[.0143, .0480, .2966, 5.8471, 1., .219], [-.0139, .1560, .5522, 1.2689, .8484, 55.501]],
     'did-test-2026-11-16': [[.001012, .018648, .136526, .466152, .9485, .135786], [-.014595, .083437, .289151, .826107, .9565, 89.779984]],
     'proximal-unified-2026-11-16-normalized': [[.0219, .0146, .1229, .4447, .965, .997], [.0161, .6718, .8196, .8475, .9735, 80.873]],
     'proximal-unified-2026-11-16-original': [[.0895, .1955, .4511, 1.5574, .965, .997], [.0454, 11.7071, 3.4210, 2.9586, .9735, 80.873]],
@@ -96,11 +98,15 @@ with sync_playwright() as p:
             assert r['group'] == 'Test'
             if r['family'] == 'classical':
                 assert r['method'] == 'RF + bootstrap'
-    # Existing ATE/CATE/IV/Mediation are not reinterpreted by this release.
-    ate = next(s for s in suites if s['domain'] == 'ate')['rows'][0]
-    assert math.isclose(ate['bias'], .0149)
-    assert math.isclose(ate['rmse'], math.sqrt((.1211**2 + .07**2) / 2))
-    assert math.isclose(ate['variance'], (.1069**2 + .0629**2) / 2)
+    # ATE/CATE are directly transcribed from Table 2, not pooled from old splits.
+    for domain in ['ate', 'cate']:
+        s = next(s for s in suites if s['domain'] == domain)
+        assert s['id'] == domain + '-fixed-collection-report'
+        assert not s['derived'] and s['source']['file'] == 'ATE_CATE.pdf'
+        assert s['tables'] == 2000 and s['sample_size'] == 500
+        assert s['dgp_families'] == 13
+        assert [[r[k] for k in keys] for r in s['rows']] == expected_values[s['id']]
+    # The other domains remain unchanged.
     iv = next(s for s in suites if s['domain'] == 'iv')
     assert len(iv['rows']) == 3 and all(r['variance'] is None for r in iv['rows'])
     assert iv['rows'][0]['method'] == 'IV-PFN' and iv['rows'][1]['length'] > 100000
@@ -122,6 +128,46 @@ with sync_playwright() as p:
             assert page.locator('.method-ref-name').count() == 6
         if domain in ['nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']:
             assert page.locator('.empty-cell').count() == 6 and page.locator('#export-btn').is_disabled()
+
+    # Both updated domains show all four reported rows at source precision.
+    hf_new = 'https://huggingface.co/fuyao11/CausalPFN-ATE-CATE'
+    paper = 'https://proceedings.neurips.cc/paper_files/paper/2025/hash/e3d3db07c1bfb63e1d0b998996de1d12-Abstract-Conference.html'
+    for domain in ['ate', 'cate']:
+        page.locator('[data-t="' + domain + '"]').click()
+        text = page.locator('#metric-tables').inner_text()
+        assert '≈' not in text
+        assert page.locator('.method-config').count() == 0  # CausalPFN has no extra five-fold wrapper.
+        for k in keys:
+            cells = page.locator('[data-metric="' + k + '"] tbody td.num').all_inner_texts()
+            values = [v[keys.index(k)] for v in expected_values[domain + '-fixed-collection-report']]
+            def fmt(v):
+                if k == 'coverage':
+                    return f'{v * 100:.2f}%'
+                digits = 3 if k == 'time_s' else 4
+                sign = '−' if v < 0 else '+' if k == 'bias' and v > 0 else ''
+                return sign + f'{abs(v):.{digits}f}'
+            assert cells == [fmt(v) for v in values], (domain, k, cells)
+        assert page.locator('.method-ref-name').first.get_attribute('href') == paper
+        page.locator('#method-references').evaluate('(el)=>el.open=true')
+        assert page.locator('.reference-secondary').get_attribute('href') == hf_new
+        assert page.locator('a[href="https://huggingface.co/vdblm/causalpfn"]').count() == 0
+        page.locator('#method-references').evaluate('(el)=>el.open=false')
+        page.locator('#table').screenshot(path=str(out / (domain + '-test-tables.png')))
+        with page.expect_download() as download:
+            page.locator('#export-btn').click()
+        csv_path = out / (domain + '-test.csv')
+        download.value.save_as(csv_path)
+        with csv_path.open() as f:
+            exported = list(csv.DictReader(f))
+        assert len(exported) == 2 and all(r['source_file'] == 'ATE_CATE.pdf' for r in exported)
+        assert [[float(r[k]) for k in keys] for r in exported] == expected_values[domain + '-fixed-collection-report']
+        assert all(r['approximate_metrics'] == '' for r in exported)
+        page.locator('[data-fam="classical"]').click()
+        assert page.locator('[data-metric="bias"] tbody tr').count() == 1
+        page.locator('[data-fam="all"]').click()
+        page.locator('#q').fill('CausalPFN')
+        assert page.locator('[data-metric="rmse"] tbody tr').count() == 1
+        page.locator('#q').fill('')
 
     page.locator('[data-t="did_sc"]').click()
     did_text = page.locator('#metric-tables').inner_text()
@@ -193,9 +239,16 @@ with sync_playwright() as p:
     assert mobile.locator('#hero-title').inner_text() == 'Proximal Causal Inference'
     assert mobile.locator('#menu-btn').get_attribute('aria-expanded') == 'false'
     assert mobile.evaluate('document.documentElement.scrollWidth <= innerWidth')
-    mobile.screenshot(path=str(out / 'unified-test-mobile.png'), full_page=True)
+    for domain in ['ate', 'cate']:
+        mobile.locator('#menu-btn').click()
+        mobile.locator('[data-t="' + domain + '"]').click()
+        assert mobile.locator('#hero-title').inner_text() == domain.upper()
+        assert mobile.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        assert mobile.locator('.method-config').count() == 0
+        assert mobile.locator('.reference-secondary').get_attribute('href') == hf_new
+    mobile.screenshot(path=str(out / 'ate-cate-mobile.png'), full_page=True)
     assert not errors, errors
-    report = {'status': 'passed', 'commit': sha, 'url': base, 'tables_per_domain': 6, 'populated_domains': 6, 'suites': 7, 'chart_count': 0, 'new_direct_report_suites': list(expected_values), 'source_proximal_detail_rows': 16, 'technical_sections_in_dom': 0, 'rf_config_labels': 0, 'pfn_did_reference': hf, 'javascript_errors': errors}
+    report = {'status': 'passed', 'commit': sha, 'url': base, 'tables_per_domain': 6, 'populated_domains': 6, 'suites': 7, 'chart_count': 0, 'new_direct_report_suites': list(expected_values), 'source_proximal_detail_rows': 16, 'technical_sections_in_dom': 0, 'rf_config_labels': 0, 'ate_cate_huggingface': hf_new, 'pfn_did_reference': hf, 'javascript_errors': errors}
     (out / 'test-view-report.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     browser.close()
