@@ -21,6 +21,21 @@
 <link rel="stylesheet" href="assets/references.css?v=1">
 <link rel="stylesheet" href="assets/test-view.css?v=single-table-1">
 <link rel="stylesheet" href="assets/submit-method.css?v=black-submit-1">
+<style id="metric-definitions-style">
+/* Scoped to the metric glossary; leaderboard and submission styles are unchanged. */
+#methodology.metric-definitions .definition-notation{font-size:12px;line-height:1.85;color:var(--muted);max-width:100ch;margin:12px 0 22px}
+#methodology.metric-definitions .metric-definition-list{margin:0;padding:0}
+#methodology.metric-definitions .metric-definition{display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:17px 0;border-top:1px solid var(--line)}
+#methodology.metric-definitions dt{font:500 12px/1.65 var(--body);padding-top:2px}
+#methodology.metric-definitions dd{margin:0;min-width:0}
+#methodology.metric-definitions dd p{font-size:12px;line-height:1.8;color:var(--muted);max-width:90ch;margin-top:7px}
+#methodology.metric-definitions dd strong{font-weight:550;color:var(--fg)}
+#methodology.metric-definitions math{font-size:1.08em;color:var(--fg)}
+#methodology.metric-definitions math[display=block]{font-size:17px;text-align:left;margin:0;padding:3px 0}
+#methodology.metric-definitions dd p+math{margin-top:15px}
+#methodology.metric-definitions .definition-scale{font-size:11px;line-height:1.8;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;margin-top:0}
+@media(max-width:650px){#methodology.metric-definitions .metric-definition{grid-template-columns:1fr;gap:7px;padding:16px 0}#methodology.metric-definitions dt{font-size:13px}#methodology.metric-definitions math[display=block]{font-size:16px}}
+</style>
 </head>
 <body>
 <a class="skip" href="#main-panel">Skip to leaderboard</a>
@@ -31,7 +46,7 @@
 <div class="nav-caption">RESEARCH DOMAINS <span>10</span></div>
 <div id="tabs" role="tablist" aria-label="Research domains" aria-orientation="vertical"></div>
 <div class="sidebar-bottom"><div class="nav-caption">RESOURCES</div>
-<a href="#methodology"><span>Evaluation methodology</span><span>↗</span></a>
+<a href="#methodology"><span>Metric definitions</span><span>↗</span></a>
 <a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer"><span>Website on GitHub</span><span>↗</span></a>
 <div class="sidebar-foot"><span>Statistical Inference Arena</span><span>Research benchmark</span></div>
 </div></aside>
@@ -53,7 +68,31 @@
 <details id="method-references" class="method-references" hidden><summary>Method references</summary><div id="reference-list" class="reference-list"></div></details>
 <div class="registry-row"><a id="registry-link" target="_blank" rel="noopener noreferrer">Browse DGP registry ↗</a><span>Research repository access required.</span></div>
 </main>
-<section class="method" id="methodology"><div class="method-heading"><div class="section-label">EVALUATION METHODOLOGY</div><h2>More than a single score.</h2><p>Different targets and evaluation suites are never pooled into one ranking.</p></div><div class="method-grid"><article><span class="method-no">01</span><h3>Estimation accuracy</h3><p>Bias reports signed estimation error. Variance follows each report’s stated definition; within-mechanism variance and cross-table error variance are distinguished. RMSE summarizes squared estimation error. Each release specifies the target and aggregation.</p></article><article><span class="method-no">02</span><h3>Confidence intervals</h3><p>Length is the mean interval width. Coverage is the fraction containing the true parameter, assessed against the nominal level. Shorter intervals alone do not imply better inference.</p></article><article><span class="method-no">03</span><h3>Test protocol &amp; time</h3><p>Each domain shows a Test summary. Directly reported pooled results are preferred; any aggregation from rounded group summaries is marked approximate and documented. Timing conditions are retained in the result data.</p></article></div></section>
+<section class="method metric-definitions" id="methodology" aria-labelledby="metric-definitions-title">
+<div class="method-heading"><h2 id="metric-definitions-title">Metric definitions</h2></div>
+<p class="definition-notation">For each test dataset, <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="theta"><mi>θ</mi></math> is the true parameter, <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="theta hat"><mover><mi>θ</mi><mo>^</mo></mover></math> is its estimate, <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="interval from L to U"><mo>[</mo><mi>L</mi><mo>,</mo><mi>U</mi><mo>]</mo></math> is the reported 95% interval, and <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="t"><mi>t</mi></math> is the time required to compute both. The estimation error is <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="e equals theta hat minus theta"><mi>e</mi><mo>=</mo><mover><mi>θ</mi><mo>^</mo></mover><mo>−</mo><mi>θ</mi></math>. <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="expectation"><mi mathvariant="double-struck">E</mi></math> denotes expectation over the test-data distribution; the leaderboard reports empirical estimates of the quantities below.</p>
+<dl class="metric-definition-list">
+<div class="metric-definition" id="definition-bias">
+<dt>Bias</dt><dd><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Bias equals the expected estimation error"><mtext>Bias</mtext><mo>=</mo><mi mathvariant="double-struck">E</mi><mo>[</mo><mi>e</mi><mo>]</mo></math><p>The signed average estimation error. Positive values indicate overestimation; negative values indicate underestimation. Values closer to zero indicate less average bias.</p></dd>
+</div>
+<div class="metric-definition" id="definition-variance">
+<dt>Variance</dt><dd><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Sampling variance is the average conditional variance of the estimator given a fixed test setting C"><msub><mi>V</mi><mtext>sampling</mtext></msub><mo>=</mo><msub><mi mathvariant="double-struck">E</mi><mi>C</mi></msub><mo>[</mo><mtext>Var</mtext><mo>(</mo><mover><mi>θ</mi><mo>^</mo></mover><mo>|</mo><mi>C</mi><mo>)</mo><mo>]</mo></math><p><strong>Sampling variance</strong> measures variation between independent datasets for a fixed test setting <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="C"><mi>C</mi></math> (the generating distribution and any query point), then averages over test settings. It is used for Average Treatment Effect, Conditional Average Treatment Effect and Mediation.</p><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Error variance equals the expected squared deviation of estimation error from its mean"><msub><mi>V</mi><mtext>error</mtext></msub><mo>=</mo><mi mathvariant="double-struck">E</mi><mo>[</mo><msup><mrow><mo>(</mo><mi>e</mi><mo>−</mo><mi mathvariant="double-struck">E</mi><mo>[</mo><mi>e</mi><mo>]</mo><mo>)</mo></mrow><mn>2</mn></msup><mo>]</mo></math><p><strong>Error variance</strong> measures the spread of estimation errors across test datasets. It is used for Instrumental Variables, Proximal Causal Inference and Difference-in-Differences.</p></dd>
+</div>
+<div class="metric-definition" id="definition-rmse">
+<dt>Root mean squared error (RMSE)</dt><dd><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="RMSE equals the square root of expected squared estimation error"><mtext>RMSE</mtext><mo>=</mo><msqrt><mi mathvariant="double-struck">E</mi><mo>[</mo><msup><mrow><mi>e</mi></mrow><mn>2</mn></msup><mo>]</mo></msqrt></math><p>The overall magnitude of estimation error, including both bias and variability. Lower values indicate more accurate point estimates.</p></dd>
+</div>
+<div class="metric-definition" id="definition-length">
+<dt>Interval length</dt><dd><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Length equals the expected upper endpoint minus lower endpoint"><mtext>Length</mtext><mo>=</mo><mi mathvariant="double-struck">E</mi><mo>[</mo><mi>U</mi><mo>−</mo><mi>L</mi><mo>]</mo></math><p>The average width of the reported interval. Narrower intervals are more informative only when they provide adequate coverage.</p></dd>
+</div>
+<div class="metric-definition" id="definition-coverage">
+<dt>Coverage</dt><dd><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Coverage in percent equals 100 times the probability that the interval contains the true parameter"><mtext>Coverage</mtext><mo>=</mo><mn>100</mn><mo>×</mo><mtext>Pr</mtext><mo>(</mo><mi>L</mi><mo>≤</mo><mi>θ</mi><mo>≤</mo><mi>U</mi><mo>)</mo></math><p>The percentage of intervals that contain the true parameter. The nominal level is 95%; values above 95% are not automatically better.</p></dd>
+</div>
+<div class="metric-definition" id="definition-time">
+<dt>Inference time</dt><dd><math xmlns="http://www.w3.org/1998/Math/MathML" display="block" aria-label="Time equals the expected computation time per test dataset"><mtext>Time</mtext><mo>=</mo><mi mathvariant="double-struck">E</mi><mo>[</mo><mi>t</mi><mo>]</mo></math><p>The average wall-clock time, in seconds per dataset, to produce both the point estimate and its interval. For RF + bootstrap, this includes fitting the original dataset and all bootstrap refits.</p></dd>
+</div>
+</dl>
+<p class="definition-scale">For standardized scores, the error is <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="theta hat minus theta, divided by s"><mo>(</mo><mover><mi>θ</mi><mo>^</mo></mover><mo>−</mo><mi>θ</mi><mo>)</mo><mo>/</mo><mi>s</mi></math> and interval length is <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="U minus L, divided by s"><mo>(</mo><mi>U</mi><mo>−</mo><mi>L</mi><mo>)</mo><mo>/</mo><mi>s</mi></math>, where <math xmlns="http://www.w3.org/1998/Math/MathML" aria-label="s"><mi>s</mi></math> is the sample standard deviation of the observed outcome. Coverage and time are unchanged.</p>
+</section>
 <footer><a class="footer-brand" href="#domain=mediation"><img src="assets/statsarena-logo.webp" alt="" width="24" height="24">Statistical Inference Arena</a><span>Statistical Inference Arena</span><a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer">Website source ↗</a></footer>
 </div></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
