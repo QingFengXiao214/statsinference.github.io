@@ -3,7 +3,7 @@
 const DOMAINS = [
  {id:'ate',name:'Average Treatment Effect',desc:'Point estimates and confidence intervals for average treatment effects.'},
  {id:'cate',name:'Conditional Average Treatment Effect',desc:'Inference for conditional treatment effects at specified covariate queries.'},
- {id:'mediation',name:'Mediation',desc:'Statistical inference for explicitly defined direct, indirect, and mediation targets.'},
+ {id:'mediation',name:'Causal Mediation',desc:'Statistical inference for explicitly defined direct, indirect, and mediation targets.'},
  {id:'iv',name:'Instrumental Variables',desc:'Inference with instrumental variables under each task’s stated identification assumptions.'},
  {id:'proximal',name:'Proximal Causal Inference',desc:'Causal inference with proxy variables under each task’s stated assumptions.'},
  {id:'did_sc',name:'Difference-in-Differences',desc:'Inference for difference-in-differences targets.'},

@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="assets/test-view.css?v=single-table-1">
 <link rel="stylesheet" href="assets/submit-method.css?v=black-submit-1">
 <link rel="stylesheet" href="assets/comparison-charts.css?v=1">
+<link rel="stylesheet" href="assets/domain-illustrations.css?v=1">
 </head>
 <body>
 <a class="skip" href="#main-panel">Skip to leaderboard</a>
@@ -39,11 +40,11 @@
 <div class="page">
 <header class="topbar"><div class="topbar-left"><button class="menu-button" id="menu-btn" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button><span>Leaderboards</span><span class="breadcrumb-sep">/</span><span class="muted">Statistical inference</span></div><div class="topbar-actions"><button class="theme-toggle" id="theme-btn" aria-label="Switch to dark theme" title="Switch color theme">◐</button><button type="button" class="method-submit-button" id="submit-method-btn" aria-haspopup="dialog" aria-controls="method-submit-dialog" aria-expanded="false">Submit your method</button></div></header>
 <div class="content">
-<section class="page-heading" aria-label="About Statistical Inference Arena"><div><div class="eyebrow">STATISTICAL INFERENCE ARENA</div><h1>Statistical<br><em>Inference Arena.</em></h1></div></section>
+<section class="page-heading with-domain-illustration" aria-label="About Statistical Inference Arena"><div><div class="eyebrow">STATISTICAL INFERENCE ARENA</div><h1>Statistical<br><em>Inference Arena.</em></h1></div><figure id="domain-illustration" class="domain-figure" aria-labelledby="domain-figure-title" hidden></figure></section>
 <span id="release-status" hidden></span>
 <p id="release-description" role="status" hidden></p>
 <main id="main-panel" role="tabpanel" aria-labelledby="tab-mediation" tabindex="-1">
-<section class="domain-heading"><div><div class="section-label">DOMAIN LEADERBOARD</div><h2 id="hero-title">Mediation</h2><p id="hero-sub">Statistical inference for explicitly defined direct, indirect, and mediation targets.</p></div><a href="#table" class="text-link">Full leaderboard <span>↘</span></a></section>
+<section class="domain-heading"><div><div class="section-label">DOMAIN LEADERBOARD</div><h2 id="hero-title">Causal Mediation</h2><p id="hero-sub">Statistical inference for explicitly defined direct, indirect, and mediation targets.</p></div><a href="#table" class="text-link">Full leaderboard <span>↘</span></a></section>
 <section class="view-bar test-controls" aria-label="Test results controls">
 <span class="test-label">TEST</span>
 <div class="chips" id="fam-chips" role="group" aria-label="Method family"><button class="chip on" data-fam="all" aria-pressed="true">All methods</button><button class="chip" data-fam="pfn" aria-pressed="false">PFN</button><button class="chip" data-fam="classical" aria-pressed="false">RF + bootstrap</button></div>
@@ -62,11 +63,12 @@
 <footer><a class="footer-brand" href="#domain=mediation"><img src="assets/statsarena-logo.webp" alt="" width="24" height="24">Statistical Inference Arena</a><span>Statistical Inference Arena</span><a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer">Website source ↗</a></footer>
 </div></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-<noscript><p class="noscript">Enable JavaScript to view the domain leaderboards. Source-reported results are available for Average Treatment Effect, Conditional Average Treatment Effect, Mediation, Instrumental Variables, Proximal Causal Inference and Difference-in-Differences. <a href="data/results.json">Read the results data</a>.</p></noscript>
+<noscript><p class="noscript">Enable JavaScript to view the domain leaderboards. Source-reported results are available for Average Treatment Effect, Conditional Average Treatment Effect, Causal Mediation, Instrumental Variables, Proximal Causal Inference and Difference-in-Differences. <a href="data/results.json">Read the results data</a>.</p></noscript>
 <script src="assets/test-references.js?v=iv-v03-1"></script>
-<script src="assets/test-view.js?v=no-share-1"></script>
+<script src="assets/test-view.js?v=causal-mediation-1"></script>
 <script src="assets/layout.js?v=arena-2"></script>
 <script src="assets/submit-method.js?v=github-intake-1"></script>
 <script src="assets/comparison-charts.js?v=1"></script>
+<script src="assets/domain-illustrations.js?v=1"></script>
 </body></html>
 
