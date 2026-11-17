@@ -1,6 +1,6 @@
 /* Additive submission UI. Existing leaderboard selectors are not restyled. */
-.method-submit-button{border:1px solid var(--line-strong);border-radius:4px;padding:6px 12px;font-size:11px;white-space:nowrap;color:var(--fg);background:var(--surface)}
-.method-submit-button:hover{border-color:var(--fg);background:var(--hover)}
+.method-submit-button{border:1px solid #000;border-radius:4px;padding:6px 12px;font-size:11px;white-space:nowrap;color:#fff;background:#000}
+.method-submit-button:hover{border-color:#000;background:#111}
 #method-submit-dialog{width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 40px);padding:28px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);color:var(--fg);box-shadow:0 24px 90px #0003}
 #method-submit-dialog::backdrop{background:#15151566}
 #method-submit-dialog .ms-heading{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:12px}
