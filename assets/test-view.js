@@ -25,7 +25,7 @@ const METRICS=[
 ];
 const metricKeys=METRICS.map(m=>m.key);
 let task='mediation',family='all',query='',testSuites=[],loadError='',loaded=false;
-const sorts={};
+let rankMetric='rmse',sortDirection=1;
 const domainSuites=()=>testSuites.filter(s=>s.domain===task);
 const current=()=>domainSuites()[0]||null;
 const visibleRows=()=> (current()?.rows||[]).filter(r=>(family==='all'||r.family===family)&&(!query||(r.method+' '+r.configuration+' '+r.source_method).toLowerCase().includes(query)));
@@ -122,23 +122,53 @@ function methodCell(r){
  const folds=FIVE_FOLD_RELEASES[current()?.id]===r.method?'5-fold':'';
  return `<span class="mname">${name}</span>${folds?`<span class="method-config">${folds}</span>`:''}${ref?`<a class="method-ref-label" href="${esc(ref.url)}" target="_blank" rel="noopener noreferrer">${ref.label} ↗</a>`:''}`;
 }
-function sortedRows(key){
- const rr=[...visibleRows()];if(!sorts[key])return rr;
- const score=r=>key==='bias'?Math.abs(r[key]):key==='coverage'?Math.abs(r[key]-(current()?.nominal_coverage??.95)):r[key];
- return rr.sort((a,b)=>!finite(a[key])?(finite(b[key])?1:0):!finite(b[key])?-1:(score(a)-score(b))*sorts[key]);
+// Rank within the current domain only. Missing results always sort last.
+function metricScore(row,key){
+ if(!finite(row[key]))return null;
+ if(key==='bias')return Math.abs(row[key]);
+ if(key==='coverage')return Math.abs(row[key]-(current()?.nominal_coverage??.95));
+ return row[key];
+}
+function compareRows(a,b,key,direction=1){
+ const av=metricScore(a,key),bv=metricScore(b,key);
+ if(av===null)return bv===null?0:1;
+ if(bv===null)return -1;
+ return (av-bv)*direction;
+}
+function sortedRows(){return [...visibleRows()].sort((a,b)=>compareRows(a,b,rankMetric,sortDirection));}
+function rankMap(){
+ const ordered=[...(current()?.rows||[])].sort((a,b)=>compareRows(a,b,rankMetric));
+ const ranks=new Map();let last=null,rank=0;
+ ordered.forEach((row,index)=>{
+  const score=metricScore(row,rankMetric);
+  if(score===null){ranks.set(row,'—');return;}
+  if(index===0||score!==last)rank=index+1;
+  ranks.set(row,rank);last=score;
+ });
+ return ranks;
+}
+function setRanking(key,toggle=false){
+ if(!metricKeys.includes(key))return;
+ sortDirection=toggle&&rankMetric===key?-sortDirection:1;
+ rankMetric=key;renderMetrics();
 }
 function renderMetrics(){
- const s=current(),normalized=s?.metric_scale==='normalized';
- $('#metric-tables').innerHTML=METRICS.map(m=>{
-  const label=m.label+(normalized&&['bias','variance','rmse','length'].includes(m.key)?' · normalized':'');
-  const rs=sortedRows(m.key),hint=m.hint;
-  const empty=loadError?'Results unavailable':loaded?'Results not yet published':'Loading results…';
-  return `<article class="metric-card" data-metric="${m.key}"><div class="metric-head"><h3>${label}</h3><p>${hint}</p></div><table><caption class="sr-only">${esc(task)} Test ${label}</caption><thead><tr><th scope="col">Method</th><th scope="col" class="r" aria-sort="${sorts[m.key]===1?'ascending':sorts[m.key]===-1?'descending':'none'}"><button data-sort="${m.key}" title="${esc(m.detail)}">Test ${sorts[m.key]===1?'↑':sorts[m.key]===-1?'↓':'↕'}</button></th></tr></thead><tbody>${rs.length?rs.map(r=>`<tr data-method="${esc(r.source_method)}"><td>${methodCell(r)}</td><td class="r num" title="${esc(r.status==='not_reported'?'Not reported for this method':r.approximate_metrics?.includes(m.key)?'Approximate aggregation of rounded source summaries':m.key==='variance'&&!finite(r[m.key])?'Pooled variance convention not established':'Reported value')}">${formatMetric(r,m.key)}</td></tr>`).join(''):`<tr><td colspan="2" class="empty-cell">${s&&!loadError?'No methods match the filters.':empty}</td></tr>`}</tbody></table></article>`;
+ const s=current(),rs=sortedRows(),ranks=rankMap();
+ const empty=loadError?'Results unavailable':loaded?'Results not yet published':'Loading results…';
+ const headers=METRICS.map(m=>{
+  const active=m.key===rankMetric;
+  const order=!active?'none':['bias','coverage'].includes(m.key)?'other':sortDirection===1?'ascending':'descending';
+  const label=m.key==='time_s'?'Time (s)':m.label;
+  return `<th scope="col" data-metric="${m.key}" class="r${active?' ranked-column':''}" aria-sort="${order}"><button type="button" data-sort="${m.key}" title="${esc(m.detail)}">${esc(label)} <span class="sort-arrow" aria-hidden="true">${active?(sortDirection===1?'↑':'↓'):'↕'}</span></button></th>`;
  }).join('');
- $('#export-btn').disabled=!visibleRows().some(r=>r.status!=='not_reported');
- const shown=visibleRows(),notes=[];
- if(shown.some(r=>r.approximate_metrics?.length))notes.push('≈ Approximate value.');
- if(shown.some(r=>metricKeys.some(k=>!finite(r[k]))))notes.push('— Not reported.');
+ const body=rs.length?rs.map(r=>`<tr data-method="${esc(r.source_method||r.method)}"><td class="rank-cell num">${ranks.get(r)}</td><th scope="row" class="method-cell">${methodCell(r)}</th>${METRICS.map(m=>`<td data-metric="${m.key}" class="r num${m.key===rankMetric?' ranked-column':''}" title="${esc(r.status==='not_reported'?'Not reported':r.approximate_metrics?.includes(m.key)?'Approximate value':'Reported value')}">${formatMetric(r,m.key)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="8" class="empty-cell">${s&&!loadError?'No methods match the filters.':empty}</td></tr>`;
+ $('#leaderboard-wrap').innerHTML=`<table id="leaderboard"><caption class="sr-only">${esc(DOMAINS.find(d=>d.id===task).name)} — Test results</caption><thead><tr><th scope="col" class="rank-cell">Rank</th><th scope="col" class="method-cell">Method</th>${headers}</tr></thead><tbody>${body}</tbody></table>`;
+ $('#rank-metric').value=rankMetric;
+ $('#rank-metric').title=METRICS.find(m=>m.key===rankMetric).detail;
+ $('#export-btn').disabled=!rs.some(r=>r.status!=='not_reported');
+ const notes=[];
+ if(rs.some(r=>r.approximate_metrics?.length))notes.push('≈ Approximate value.');
+ if(rs.some(r=>metricKeys.some(k=>!finite(r[k]))))notes.push('— Not reported.');
  $('#table-note').textContent=notes.join(' ');$('#table-note').hidden=!notes.length;
  renderReferences();
 }
@@ -167,11 +197,13 @@ $('#tabs').innerHTML=DOMAINS.map(d=>`<button class="tab" id="tab-${d.id}" data-t
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b)chooseTask(b.dataset.t);});
 $('#fam-chips').addEventListener('click',e=>{const b=e.target.closest('[data-fam]');if(b){family=b.dataset.fam;render();}});
 $('#q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();renderMetrics();});
-$('#metric-tables').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(b){const k=b.dataset.sort;sorts[k]=sorts[k]===1?-1:1;renderMetrics();}});
+$('#rank-metric').addEventListener('change',e=>setRanking(e.target.value));
+$('#leaderboard-wrap').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(b)setRanking(b.dataset.sort,true);});
 function csvCell(v){let s=String(v??'');if(typeof v==='string'&&/^[=+@\t\r-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
 $('#export-btn').addEventListener('click',()=>{
- const s=current();if(!s)return;const keys=['domain','evaluation','method','configuration','source_method',...metricKeys,'approximate_metrics','tables','source_file','aggregation','variance_definition','timing'];
- const rr=visibleRows().map(r=>({...r,domain:task,evaluation:'Test',approximate_metrics:r.approximate_metrics.join(';'),source_file:s.source.file,aggregation:s.aggregation,variance_definition:s.variance_definition,timing:s.timing}));
+ const s=current();if(!s)return;const keys=['rank','domain','evaluation','method','configuration','source_method',...metricKeys,'approximate_metrics','tables','source_file','aggregation','variance_definition','timing'];
+ const ranks=rankMap();
+ const rr=sortedRows().map(r=>({...r,rank:ranks.get(r),domain:task,evaluation:'Test',approximate_metrics:r.approximate_metrics.join(';'),source_file:s.source.file,aggregation:s.aggregation,variance_definition:s.variance_definition,timing:s.timing}));
  const text=[keys.join(','),...rr.map(r=>keys.map(k=>csvCell(r[k])).join(','))].join('\r\n');
  const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='statistical-inference-arena-'+task+'-test.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });

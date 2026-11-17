@@ -1,4 +1,32 @@
-/* Tables replace charts; retain the existing editorial type, colors and sidebar. */
-.test-controls{gap:10px;margin-bottom:22px}.test-label{font:500 10px var(--mono);letter-spacing:.08em;border:1px solid var(--line-strong);padding:7px 10px;border-radius:4px}.test-controls .search{margin-left:auto}.test-controls .export{margin-left:0}.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.metric-card{min-width:0;border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}.metric-head{padding:16px 18px 12px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}.metric-head h3{font:400 23px var(--display);letter-spacing:-.3px}.metric-head p{font:10px var(--body);color:var(--muted);text-align:right}.metric-card table{min-width:0;table-layout:fixed;width:100%}.metric-card th:first-child{width:68%}.metric-card th,.metric-card td{padding:12px 18px;font-size:12px}.metric-card th{font-size:10px}.metric-card td{white-space:normal;overflow-wrap:anywhere;vertical-align:top}.metric-card td.num{white-space:nowrap;font-size:11px}.metric-card .mname{display:block}.method-config{display:block;font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5}.metric-card .method-ref-label{margin:3px 0 0;font-size:9px}.metric-card .empty-cell{padding:22px 18px;color:var(--quiet)}.test-protocol{border-top:1px solid var(--line);margin-top:16px;padding-top:12px;font-size:11px}.test-protocol summary{cursor:pointer;font-weight:500;color:var(--muted)}#protocol-content{display:grid;gap:10px;padding:14px 0;color:var(--muted);line-height:1.75;max-width:100ch}#protocol-content strong{display:block;color:var(--fg);font-weight:550}.exception-note{border-left:2px solid var(--line-strong);padding-left:10px}.registry-row{margin:18px 0 28px}.metric-grid:empty{min-height:160px}.metric-grid:empty:before{content:'Loading Test results…';color:var(--muted);font-size:13px}.dgp-scroll{overflow-x:auto;margin-top:14px}.dgp-scroll table{min-width:860px}.test-detail-note{margin:10px 0;color:var(--muted);font-size:10px}.method-references a{overflow-wrap:anywhere}.metric-card th button{width:100%;text-align:right}.suite-info{line-height:1.7}
-@media(max-width:1100px){.metric-card th,.metric-card td{padding:12px}.metric-head{padding:15px 12px 10px}.metric-head h3{font-size:21px}}
-@media(max-width:680px){.metric-grid{grid-template-columns:1fr}.test-controls .search{margin-left:0;max-width:180px}.test-controls .export{margin-left:auto}.metric-card th:first-child{width:68%}.test-controls #suite-label{width:100%}.test-controls select{max-width:100%}}
+/* One shared leaderboard layout across all research domains. */
+.test-controls{gap:10px;margin-bottom:18px}
+.test-label{font:500 10px var(--mono);letter-spacing:.08em;border:1px solid var(--line-strong);padding:7px 10px;border-radius:4px}
+.rank-control{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);white-space:nowrap}
+.rank-control select{font-size:11px;min-width:100px;padding:6px 28px 6px 9px;color:var(--fg)}
+.test-controls .search{margin-left:auto}
+.test-controls .export{margin-left:0}
+.leaderboard-wrap{width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+#leaderboard{width:100%;min-width:890px;table-layout:fixed}
+#leaderboard th,#leaderboard td{padding:17px 12px;vertical-align:middle}
+#leaderboard thead th{font:500 11px var(--body);height:48px;padding-top:13px;padding-bottom:13px}
+#leaderboard .rank-cell{width:54px;text-align:center;color:var(--quiet)}
+#leaderboard .method-cell{width:210px;text-align:left;white-space:normal}
+#leaderboard tbody .method-cell{font:400 12px var(--body);color:var(--fg);background:transparent}
+#leaderboard .num{font:11px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+#leaderboard .mname{display:block;font-size:12px;font-weight:550}
+#leaderboard .method-config{display:inline-block;font:10px var(--body);color:var(--muted);margin-top:5px;line-height:1.5}
+#leaderboard .method-ref-label{font-size:9px;margin:4px 0 0 8px}
+#leaderboard .mname+.method-ref-label{margin-left:0}
+#leaderboard thead button{width:100%;text-align:right;white-space:nowrap;min-height:22px}
+#leaderboard .sort-arrow{margin-left:4px;color:var(--quiet)}
+#leaderboard .ranked-column{background:var(--accent-soft);color:var(--fg)}
+#leaderboard thead .ranked-column .sort-arrow{color:var(--accent)}
+#leaderboard .empty-cell{padding:36px 20px;color:var(--quiet);text-align:center;font-size:12px}
+#leaderboard tbody tr:last-child th{border-bottom:0}
+.leaderboard-wrap:empty{min-height:150px}
+.leaderboard-wrap:empty:before{content:'Loading Test results…';display:block;padding:25px;color:var(--muted);font-size:12px}
+.registry-row{margin:18px 0 28px}
+.method-references a{overflow-wrap:anywhere}
+@media(max-width:1100px){.test-controls .search{max-width:150px}.test-controls .search input{width:125px}}
+@media(max-width:680px){.test-controls{gap:10px}.test-controls .search{margin-left:0;max-width:170px;flex:1}.test-controls .export{margin-left:auto}.rank-control{margin-right:auto}#leaderboard{min-width:850px}#leaderboard .method-cell{width:180px}#leaderboard .rank-cell{width:48px}}
+@media print{.leaderboard-wrap{overflow:visible}#leaderboard{min-width:0}.test-controls{display:none}}

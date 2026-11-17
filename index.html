@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="assets/site.css?v=arena-2">
 <link rel="stylesheet" href="assets/release.css?v=multidomain-2">
 <link rel="stylesheet" href="assets/references.css?v=1">
-<link rel="stylesheet" href="assets/test-view.css?v=1">
+<link rel="stylesheet" href="assets/test-view.css?v=single-table-1">
 </head>
 <body>
 <a class="skip" href="#main-panel">Skip to leaderboard</a>
@@ -44,10 +44,11 @@
 <section class="view-bar test-controls" aria-label="Test results controls">
 <span class="test-label">TEST</span>
 <div class="chips" id="fam-chips" role="group" aria-label="Method family"><button class="chip on" data-fam="all" aria-pressed="true">All methods</button><button class="chip" data-fam="pfn" aria-pressed="false">PFN</button><button class="chip" data-fam="classical" aria-pressed="false">RF + bootstrap</button></div>
+<label class="rank-control" for="rank-metric">Rank by <select id="rank-metric" aria-label="Rank by metric"><option value="bias">Bias</option><option value="variance">Variance</option><option value="rmse" selected>RMSE</option><option value="length">Length</option><option value="coverage">Coverage</option><option value="time_s">Time</option></select></label>
 <label class="search"><input id="q" type="search" placeholder="Search methods" aria-label="Search methods"></label>
 <button class="export" id="export-btn" disabled>Export CSV ↓</button>
 </section>
-<section id="table" aria-label="Test results by metric"><div id="metric-tables" class="metric-grid" aria-live="polite"></div><p class="table-note" id="table-note"></p></section>
+<section id="table" aria-label="Test leaderboard"><div id="leaderboard-wrap" class="leaderboard-wrap" tabindex="0" role="region" aria-label="Scrollable Test leaderboard" aria-live="polite"></div><p class="table-note" id="table-note"></p></section>
 <details id="method-references" class="method-references" hidden><summary>Method references</summary><div id="reference-list" class="reference-list"></div></details>
 <div class="registry-row"><a id="registry-link" target="_blank" rel="noopener noreferrer">Browse DGP registry ↗</a><span>Research repository access required.</span></div>
 </main>
@@ -57,7 +58,7 @@
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <noscript><p class="noscript">Enable JavaScript to view the domain leaderboards. Source-reported results are available for Average Treatment Effect, Conditional Average Treatment Effect, Mediation, Instrumental Variables, Proximal Causal Inference and Difference-in-Differences. <a href="data/results.json">Read the results data</a>.</p></noscript>
 <script src="assets/test-references.js?v=iv-v03-1"></script>
-<script src="assets/test-view.js?v=iv-v03-1"></script>
+<script src="assets/test-view.js?v=single-table-1"></script>
 <script src="assets/layout.js?v=arena-2"></script>
 </body></html>
 
