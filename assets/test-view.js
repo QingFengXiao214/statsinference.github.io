@@ -6,7 +6,7 @@ const DOMAINS = [
  {id:'mediation',name:'Mediation',desc:'Statistical inference for explicitly defined direct, indirect, and mediation targets.'},
  {id:'iv',name:'Instrumental Variables',desc:'Inference with instrumental variables under each task’s stated identification assumptions.'},
  {id:'proximal',name:'Proximal Causal Inference',desc:'Causal inference with proxy variables under each task’s stated assumptions.'},
- {id:'did_sc',name:'Difference-in-Differences / Synthetic Control',desc:'Inference for difference-in-differences and synthetic-control targets.'},
+ {id:'did_sc',name:'Difference-in-Differences',desc:'Inference for difference-in-differences targets.'},
  {id:'nonparametric_regression',name:'Nonparametric Regression',desc:'Point estimates and confidence intervals for specified regression-function queries.'},
  {id:'quantile',name:'Quantile Inference',desc:'Inference for explicitly specified quantile and distributional targets.'},
  {id:'semi_supervised',name:'Semi-Supervised Inference',desc:'Statistical inference using labeled and unlabeled observations.'},
@@ -20,14 +20,14 @@ const METRICS=[
  {key:'variance',label:'Variance',hint:'',detail:'Source-reported variance; not standard error.'},
  {key:'rmse',label:'RMSE',hint:'Lower is better',detail:'Root mean squared error, for this target and evaluation only.'},
  {key:'length',label:'Length',hint:'Read with coverage',detail:'Mean confidence interval length; smaller alone does not imply better inference.'},
- {key:'coverage',label:'Coverage',hint:'Nominal 95%',detail:'Empirical coverage; higher is not automatically better. Sorting uses distance from the nominal level.'},
+ {key:'coverage',label:'Coverage',hint:'',detail:'Empirical coverage; higher is not automatically better. Sorting uses distance from the nominal level.'},
  {key:'time_s',label:'Inference time',hint:'Seconds per table',detail:'Reported point-plus-interval time. Hardware and timing protocols may differ.'}
 ];
 const metricKeys=METRICS.map(m=>m.key);
-let task='mediation',suiteId='',family='all',query='',testSuites=[],loadError='',loaded=false;
+let task='mediation',family='all',query='',testSuites=[],loadError='',loaded=false;
 const sorts={};
 const domainSuites=()=>testSuites.filter(s=>s.domain===task);
-const current=()=>domainSuites().find(s=>s.id===suiteId)||domainSuites()[0]||null;
+const current=()=>domainSuites()[0]||null;
 const visibleRows=()=> (current()?.rows||[]).filter(r=>(family==='all'||r.family===family)&&(!query||(r.method+' '+r.configuration+' '+r.source_method).toLowerCase().includes(query)));
 
 // All pooling is explicit and approximate because its inputs are rounded report summaries.
@@ -51,11 +51,14 @@ function displayIdentity(domain,r){
  const seed=r.method.match(/ S([12])$/);
  return {method:seed?r.method.replace(/ S[12]$/,''):r.method,configuration:seed?'Training seed '+seed[1]:''};
 }
-function buildTestSuites(raw,med,updates){
+function buildTestSuites(raw,med,updates,iv){
  if(raw.schema_version!==1||!Array.isArray(raw.suites)||med.domain!=='mediation')throw Error('Invalid result data');
  if(updates?.schema_version!==1||!Array.isArray(updates.suites))throw Error('Invalid unified Test data');
- const replaced=new Set(updates.suites.map(s=>s.domain));
- const result=[{...med,summary_kind:'Reported pooled Test results',notes:[],derived:false},...updates.suites];
+ if(iv?.domain!=='iv'||iv.id!=='iv-v03-test')throw Error('Invalid IV v0.3 Test data');
+ // Show one Proximal release; alternate units remain in the source archive only.
+ const activeUpdates=updates.suites.filter(s=>s.domain!=='proximal'||s.metric_scale==='normalized');
+ const replaced=new Set([...updates.suites.map(s=>s.domain),'iv']);
+ const result=[{...med,summary_kind:'Reported pooled Test results',notes:[],derived:false},...activeUpdates,iv];
  for(const source of raw.suites){
   if(source.domain==='mediation'||replaced.has(source.domain))continue;
   const s={id:source.id,domain:source.domain,label:source.domain==='proximal'?(source.metric_scale==='normalized'?'Normalized units':'Original units'):source.label,target:source.target,sample_size:source.sample_size,tables:2000,nominal_coverage:source.nominal_coverage,metric_scale:source.metric_scale,source:source.source,variance_definition:source.variance_definition,timing:source.hardware+'. '+source.timing_scope,protocol:source.comparison_note,rows:[],notes:[],derived:true,summary_kind:'Test summary · derived from rounded source results'};
@@ -100,7 +103,7 @@ function formatMetric(r,k){
  const v=r[k];if(!finite(v))return '—';
  const approx=r.approximate_metrics?.includes(k)?'≈':'';
  if(k==='coverage')return approx+(v*100).toFixed(2)+'%';
- const a=Math.abs(v),digits=current()?.display_precision?.[k]??(k==='time_s'?(current()?.domain==='mediation'?2:a<.1?4:3):4);
+ const a=Math.abs(v),digits=r.display_precision?.[k]??current()?.display_precision?.[k]??(k==='time_s'?(current()?.domain==='mediation'?2:a<.1?4:3):4);
  const value=a!==0&&(a>=10000||a<.0001)?a.toExponential(2):a.toFixed(digits);
  return approx+(v<0?'−':k==='bias'&&v>0?'+':'')+value;
 }
@@ -111,7 +114,7 @@ const FIVE_FOLD_RELEASES=Object.freeze({
  'mediation-fivefold-2026-11-16':'MediPFN',
  'did-test-2026-11-16':'PFN-DiD',
  'proximal-unified-2026-11-16-normalized':'ProximalFM',
- 'proximal-unified-2026-11-16-original':'ProximalFM'
+ 'iv-v03-test':'IV-PFN'
 });
 function methodCell(r){
  if(r.family==='classical')return '<span class="mname">RF + bootstrap</span>';
@@ -128,7 +131,7 @@ function renderMetrics(){
  const s=current(),normalized=s?.metric_scale==='normalized';
  $('#metric-tables').innerHTML=METRICS.map(m=>{
   const label=m.label+(normalized&&['bias','variance','rmse','length'].includes(m.key)?' · normalized':'');
-  const rs=sortedRows(m.key),hint=m.key==='coverage'&&s?'Nominal '+(100*s.nominal_coverage).toFixed(0)+'%':m.hint;
+  const rs=sortedRows(m.key),hint=m.hint;
   const empty=loadError?'Results unavailable':loaded?'Results not yet published':'Loading results…';
   return `<article class="metric-card" data-metric="${m.key}"><div class="metric-head"><h3>${label}</h3><p>${hint}</p></div><table><caption class="sr-only">${esc(task)} Test ${label}</caption><thead><tr><th scope="col">Method</th><th scope="col" class="r" aria-sort="${sorts[m.key]===1?'ascending':sorts[m.key]===-1?'descending':'none'}"><button data-sort="${m.key}" title="${esc(m.detail)}">Test ${sorts[m.key]===1?'↑':sorts[m.key]===-1?'↓':'↕'}</button></th></tr></thead><tbody>${rs.length?rs.map(r=>`<tr data-method="${esc(r.source_method)}"><td>${methodCell(r)}</td><td class="r num" title="${esc(r.status==='not_reported'?'Not reported for this method':r.approximate_metrics?.includes(m.key)?'Approximate aggregation of rounded source summaries':m.key==='variance'&&!finite(r[m.key])?'Pooled variance convention not established':'Reported value')}">${formatMetric(r,m.key)}</td></tr>`).join(''):`<tr><td colspan="2" class="empty-cell">${s&&!loadError?'No methods match the filters.':empty}</td></tr>`}</tbody></table></article>`;
  }).join('');
@@ -148,25 +151,22 @@ function renderReferences(){
  }).join('')+'<p class="reference-note">Method references identify the model, not the source of these benchmark scores.</p>';
 }
 function render(){
- const d=DOMAINS.find(d=>d.id===task),s=current(),available=domainSuites();
+ const d=DOMAINS.find(d=>d.id===task);
  for(const b of document.querySelectorAll('[data-t]')){const on=b.dataset.t===task;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
  for(const b of document.querySelectorAll('[data-fam]')){const on=b.dataset.fam===family;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));}
  $('#main-panel').setAttribute('aria-labelledby','tab-'+task);$('#hero-title').textContent=d.name;$('#hero-sub').textContent=d.desc;
- $('#suite-info').innerHTML=s?`<span>Test <b>${s.tables.toLocaleString('en-US')} tables</b></span><span>n <b>${s.sample_size}</b></span><span>Target <b>${esc(s.target)}</b></span><span>Nominal coverage <b>${(100*s.nominal_coverage).toFixed(0)}%</b></span>`:'<span>Results and the evaluation protocol will accompany this domain’s release.</span>';
- $('#suite-label').hidden=available.length<2;$('#suite-select').innerHTML=available.map(x=>`<option value="${esc(x.id)}" ${x.id===s?.id?'selected':''}>${esc(x.label)}</option>`).join('');
  $('#release-status').textContent=loadError?'RESULTS UNAVAILABLE':loaded?'TEST RESULTS':'LOADING RESULTS';
  $('#release-description').textContent=loadError;$('#release-description').hidden=!loadError;
  $('#registry-link').href='https://github.com/Statsinference/stats-inference-arena/blob/main/dgp-submissions/registry/by-domain/'+task+'.md';
  renderMetrics();document.body.dataset.testView=loaded?'ready':'loading';
 }
-function readHash(){const p=new URLSearchParams(location.hash.slice(1));if(DOMAINS.some(d=>d.id===p.get('domain')))task=p.get('domain');suiteId=p.get('suite')||'';}
-function writeHash(){const p=new URLSearchParams({domain:task});if(suiteId)p.set('suite',suiteId);try{history.replaceState(null,'','#'+p);}catch(_){}}
-function chooseTask(id){if(!DOMAINS.some(d=>d.id===id))return;task=id;suiteId='';family='all';query='';$('#q').value='';writeHash();render();}
+function readHash(){const p=new URLSearchParams(location.hash.slice(1));if(DOMAINS.some(d=>d.id===p.get('domain')))task=p.get('domain');}
+function writeHash(){const p=new URLSearchParams({domain:task});try{history.replaceState(null,'','#'+p);}catch(_){}}
+function chooseTask(id){if(!DOMAINS.some(d=>d.id===id))return;task=id;family='all';query='';$('#q').value='';writeHash();render();}
 $('#tabs').innerHTML=DOMAINS.map(d=>`<button class="tab" id="tab-${d.id}" data-t="${d.id}" role="tab" aria-controls="main-panel" aria-selected="false" tabindex="-1">${esc(d.name)}</button>`).join('');
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b)chooseTask(b.dataset.t);});
 $('#fam-chips').addEventListener('click',e=>{const b=e.target.closest('[data-fam]');if(b){family=b.dataset.fam;render();}});
 $('#q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();renderMetrics();});
-$('#suite-select').addEventListener('change',e=>{suiteId=e.target.value;writeHash();render();});
 $('#metric-tables').addEventListener('click',e=>{const b=e.target.closest('[data-sort]');if(b){const k=b.dataset.sort;sorts[k]=sorts[k]===1?-1:1;renderMetrics();}});
 function csvCell(v){let s=String(v??'');if(typeof v==='string'&&/^[=+@\t\r-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
 $('#export-btn').addEventListener('click',()=>{
@@ -182,5 +182,4 @@ $('#share-btn').addEventListener('click',async()=>{try{if(navigator.share)await 
 window.addEventListener('hashchange',()=>{readHash();render();});
 window.ArenaTestView=Object.freeze({aggregateRows,getSuites:()=>testSuites,metrics:metricKeys});
 readHash();render();
-Promise.all(['data/results.json','data/mediation-fivefold.json','data/unified-test-2026-11-16.json'].map(path=>fetch(path+'?view=unified-2',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('Result data request failed');return r.json();}))).then(([raw,med,updates])=>{testSuites=buildTestSuites(raw,med,updates);loaded=true;render();}).catch(e=>{loaded=true;loadError='Could not load Test results. Please refresh or contact the maintainers.';render();console.error(e);});
-
+Promise.all(['data/results.json','data/mediation-fivefold.json','data/unified-test-2026-11-16.json','data/iv-v03.json'].map(path=>fetch(path+'?view=iv-v03-1',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('Result data request failed');return r.json();}))).then(([raw,med,updates,iv])=>{testSuites=buildTestSuites(raw,med,updates,iv);loaded=true;render();}).catch(e=>{loaded=true;loadError='Could not load Test results. Please refresh or contact the maintainers.';render();console.error(e);});

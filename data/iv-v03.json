@@ -1,0 +1,67 @@
+{
+  "id": "iv-v03-test",
+  "domain": "iv",
+  "label": "IV-PFN v0.3 · Test",
+  "target": null,
+  "sample_size": null,
+  "tables": null,
+  "nominal_coverage": 0.95,
+  "metric_scale": "original",
+  "derived": false,
+  "summary_kind": "Reported Test results",
+  "source": {
+    "title": "User-supplied IV-PFN v0.3 Test results",
+    "file": "User-provided result table",
+    "type": "user_supplied_table",
+    "url": "https://huggingface.co/Brownight/tabpfn-iv-adapter-v0.3"
+  },
+  "aggregation": "Direct transcription of the two supplied Test rows. No ID/OOD pooling or recomputation. Test-table count and aggregation weights were not restated in the supplied v0.3 summary.",
+  "variance_definition": "Reported as Error var. in the supplied table; copied without conversion. The divisor is not restated.",
+  "protocol": "Five folds, as stated by the user. RF source label is RF trim + bootstrap; public display label is RF + bootstrap.",
+  "timing": "Reported seconds per table. Hardware and timing boundaries are not restated in the supplied summary.",
+  "notes": [],
+  "display_precision": {
+    "bias": 3,
+    "variance": 3,
+    "rmse": 3,
+    "length": 3,
+    "time_s": 3
+  },
+  "rows": [
+    {
+      "method": "IV-PFN",
+      "source_method": "PFN",
+      "family": "pfn",
+      "configuration": "5-fold · v0.3",
+      "group": "Test",
+      "status": "reported",
+      "bias": 0.012,
+      "variance": 0.072,
+      "rmse": 0.268,
+      "length": 0.875,
+      "coverage": 0.9565,
+      "time_s": 0.366,
+      "tables": null,
+      "approximate_metrics": []
+    },
+    {
+      "method": "RF + bootstrap",
+      "source_method": "RF trim + bootstrap",
+      "family": "classical",
+      "configuration": "",
+      "group": "Test",
+      "status": "reported",
+      "bias": 0.022,
+      "variance": 0.099,
+      "rmse": 0.316,
+      "length": 1.111,
+      "coverage": 0.9025,
+      "time_s": 179.9,
+      "tables": null,
+      "approximate_metrics": [],
+      "display_precision": {
+        "time_s": 1
+      }
+    }
+  ]
+}

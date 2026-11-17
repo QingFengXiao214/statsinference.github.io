@@ -1,255 +1,163 @@
-"""Verify compact Test tables and directly reported ATE/CATE results.
-Use ARENA_TEST_URL=local for a local render; the CI default verifies GitHub Pages.
-Never execute a DGP or change reported metrics.
+"""Verify six compact Test leaderboards, references and the user-supplied IV v0.3 rows.
+ARENA_TEST_URL=local runs without external network. Default checks the deployed website.
+No scientific DGPs are executed; all metrics are checked against their supplied summaries.
 """
 from pathlib import Path
-import re
-import base64
-import csv
-import json
-import math
-import os
-import time
-import urllib.request
+import base64, csv, hashlib, json, os, re, time, urllib.request
 from playwright.sync_api import sync_playwright
 
-root = Path(__file__).resolve().parents[1]
-out = root / 'verification'
-out.mkdir(exist_ok=True)
-sha = os.environ.get('GITHUB_SHA', 'ate-cate-fixed-collection')
-base = os.environ.get('ARENA_TEST_URL', 'https://statsinference.github.io/')
-expected_data = json.loads((root / 'data/unified-test-2026-11-16.json').read_text())
-keys = ['bias', 'variance', 'rmse', 'length', 'coverage', 'time_s']
-expected_values = {
-    'ate-fixed-collection-report': [[.0119, .0097, .1114, .2599, .7763, 1.089], [-.0167, .0137, .1284, .5897, .9675, 90.490]],
-    'cate-fixed-collection-report': [[.0143, .0480, .2966, 5.8471, 1., .219], [-.0139, .1560, .5522, 1.2689, .8484, 55.501]],
-    'did-test-2026-11-16': [[.001012, .018648, .136526, .466152, .9485, .135786], [-.014595, .083437, .289151, .826107, .9565, 89.779984]],
-    'proximal-unified-2026-11-16-normalized': [[.0219, .0146, .1229, .4447, .965, .997], [.0161, .6718, .8196, .8475, .9735, 80.873]],
-    'proximal-unified-2026-11-16-original': [[.0895, .1955, .4511, 1.5574, .965, .997], [.0454, 11.7071, 3.4210, 2.9586, .9735, 80.873]],
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / 'verification'
+OUT.mkdir(exist_ok=True)
+BASE = os.environ.get('ARENA_TEST_URL', 'https://statsinference.github.io/')
+LOCAL = BASE == 'local'
+SHA = os.environ.get('GITHUB_SHA', 'iv-v03-compact')
+KEYS = ['bias', 'variance', 'rmse', 'length', 'coverage', 'time_s']
+DOMAINS = ['ate', 'cate', 'mediation', 'iv', 'proximal', 'did_sc', 'nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']
+EXPECTED = {
+ 'ate': [[.0119,.0097,.1114,.2599,.7763,1.089],[-.0167,.0137,.1284,.5897,.9675,90.490]],
+ 'cate': [[.0143,.0480,.2966,5.8471,1.,.219],[-.0139,.1560,.5522,1.2689,.8484,55.501]],
+ 'mediation': [[.0219,.3303,.5891,1.2654,.973,1.5],[-.1098,4.0148,2.0533,4.3238,.949,439.39]],
+ 'iv': [[.012,.072,.268,.875,.9565,.366],[.022,.099,.316,1.111,.9025,179.9]],
+ 'proximal': [[.0219,.0146,.1229,.4447,.965,.997],[.0161,.6718,.8196,.8475,.9735,80.873]],
+ 'did_sc': [[.001012,.018648,.136526,.466152,.9485,.135786],[-.014595,.083437,.289151,.826107,.9565,89.779984]]
 }
-for s in expected_data['suites']:
-    assert len(s['rows']) == 2
-    assert [[r[k] for k in keys] for r in s['rows']] == expected_values[s['id']]
-    assert all(r['status'] == 'reported' and r['group'] == 'Test' and not r['approximate_metrics'] for r in s['rows'])
-    if s['domain'] == 'proximal':
-        assert len(s['dgp_results']) == 8
-        for family in ['pfn', 'classical']:
-            assert sum(r['tables'] for r in s['dgp_results'] if r['family'] == family) == 2000
+NEW_HF = 'https://huggingface.co/Brownight/tabpfn-iv-adapter-v0.3'
+UNIFIED = json.loads((ROOT/'data/unified-test-2026-11-16.json').read_text())
+MED = json.loads((ROOT/'data/mediation-fivefold.json').read_text())
+IV = json.loads((ROOT/'data/iv-v03.json').read_text())
+assert [[r[k] for k in KEYS] for r in IV['rows']] == EXPECTED['iv']
+assert IV['rows'][1]['source_method'] == 'RF trim + bootstrap'
+assert IV['variance_definition'].startswith('Reported as Error var.')
+assert IV['source']['url'] == NEW_HF
+assert next(s for s in UNIFIED['suites'] if s['id']=='proximal-unified-2026-11-16-original')['rows'][1]['variance']==11.7071
 
-local = base == 'local'
-if local:
-    base = 'in-memory local render'
-else:
-    paths = ['index.html', 'assets/test-view.js', 'assets/test-references.js', 'data/unified-test-2026-11-16.json']
+if not LOCAL:
+    paths = ['index.html','assets/test-view.js','assets/test-references.js','data/iv-v03.json','data/unified-test-2026-11-16.json']
     for attempt in range(40):
         try:
-            if all(urllib.request.urlopen(base + path + '?verify=' + sha + '-' + str(attempt), timeout=15).read() == (root / path).read_bytes() for path in paths):
+            if all(urllib.request.urlopen(BASE+path+'?verify='+SHA+'-'+str(attempt),timeout=15).read()==(ROOT/path).read_bytes() for path in paths):
                 break
         except Exception:
             pass
         time.sleep(5)
     else:
-        raise AssertionError('The expected Test view, references and result JSON were not deployed')
+        raise AssertionError('Expected website release not yet deployed')
 
-def load_page(page, domain=None):
-    if not local:
-        page.goto(base + '?verify=' + sha + ('#domain=' + domain if domain else ''), wait_until='networkidle', timeout=60000)
-        return
-    html = (root / 'index.html').read_text()
-    html = re.sub(r'<link[^>]*href="https://fonts[^>]*>', '', html)
-    html = re.sub(r'<link rel="stylesheet" href="(assets/[^"?]+)[^"]*">', lambda m: '<style>' + (root / m.group(1)).read_text() + '</style>', html)
-    html = re.sub(r'<script src="(assets/[^"?]+)[^"]*"></script>', lambda m: '<script>' + (root / m.group(1)).read_text() + '</script>', html)
-    logo = base64.b64encode((root / 'assets/statsarena-logo.webp').read_bytes()).decode()
-    html = html.replace('assets/statsarena-logo.webp', 'data:image/webp;base64,' + logo)
-    data = {str(p.relative_to(root)): json.loads(p.read_text()) for p in (root / 'data').glob('*.json')}
-    preload = '<script>const localData=' + json.dumps(data) + ';window.fetch=(url)=>{const key=String(url).split("?")[0];return Promise.resolve(new Response(JSON.stringify(localData[key]),{status:200,headers:{"Content-Type":"application/json"}}));};</script>'
-    html = html.replace('</head>', preload + '</head>')
-    page.set_content(html, wait_until='load')
+def load_page(page, fragment=''):
+    if not LOCAL:
+        page.goto(BASE+'?verify='+SHA+('#'+fragment if fragment else ''),wait_until='networkidle',timeout=60000)
+    else:
+        html=(ROOT/'index.html').read_text()
+        html=re.sub(r'<link[^>]*href="https://fonts[^>]*>','',html)
+        html=re.sub(r'<link rel="stylesheet" href="(assets/[^"?]+)[^"]*">',lambda m:'<style>'+(ROOT/m.group(1)).read_text()+'</style>',html)
+        html=re.sub(r'<script src="(assets/[^"?]+)[^"]*"></script>',lambda m:'<script>'+(ROOT/m.group(1)).read_text()+'</script>',html)
+        html=html.replace('assets/statsarena-logo.webp','data:image/webp;base64,'+base64.b64encode((ROOT/'assets/statsarena-logo.webp').read_bytes()).decode())
+        data={str(p.relative_to(ROOT)):json.loads(p.read_text()) for p in (ROOT/'data').glob('*.json')}
+        preload='<script>const localData='+json.dumps(data)+';window.fetch=(url)=>Promise.resolve(new Response(JSON.stringify(localData[String(url).split("?")[0]]),{status:200}));</script>'
+        page.set_content(html.replace('</head>',preload+'</head>'),wait_until='load')
     page.wait_for_function("document.body.dataset.testView==='ready'")
-    if domain:
-        page.evaluate('(id)=>chooseTask(id)', domain)
+    if LOCAL and fragment:
+        page.evaluate('(h)=>{location.hash=h;readHash();render();}',fragment)
 
-errors = []
+errors=[]
 with sync_playwright() as p:
-    executable = os.environ.get('CHROMIUM_EXECUTABLE')
-    browser = p.chromium.launch(**({'executable_path': executable} if executable else {}))
-    page = browser.new_page(viewport={'width': 1440, 'height': 1050})
-    page.on('pageerror', lambda e: errors.append(str(e)))
-    if local:
-        page.route('https://fonts.googleapis.com/**', lambda route: route.abort())
-        page.route('https://fonts.gstatic.com/**', lambda route: route.abort())
+    executable=os.environ.get('CHROMIUM_EXECUTABLE')
+    browser=p.chromium.launch(**({'executable_path':executable} if executable else {}))
+    page=browser.new_page(viewport={'width':1440,'height':1050})
+    page.on('pageerror',lambda e:errors.append(str(e)))
     load_page(page)
-    page.wait_for_function("document.body.dataset.testView==='ready'")
-    assert page.title() == 'Statistical Inference Arena'
-    assert page.locator('.metric-card').count() == 6
-    assert page.locator('.overview-grid, #split-chips, [data-split], #contributors').count() == 0
-    assert page.locator('#main-panel svg').count() == 0
-    text = page.locator('#metric-tables').inner_text()
-    for v in ['+0.0219', '−0.1098', '0.3303', '4.0148', '0.5891', '2.0533', '1.2654', '4.3238', '97.30%', '94.90%', '1.50', '439.39']:
-        assert v in text, v
-    assert '≈' not in text
-    suites = page.evaluate('ArenaTestView.getSuites()')
-    assert len(suites) == 7
-    assert len(next(s for s in suites if s['domain'] == 'mediation')['dgp_results']) == 26
-    for s in expected_data['suites']:
-        assert next(x for x in suites if x['id'] == s['id']) == s
-    for s in suites:
-        for r in s['rows']:
-            assert r['group'] == 'Test'
-            if r['family'] == 'classical':
-                assert r['method'] == 'RF + bootstrap'
-    # ATE/CATE are directly transcribed from Table 2, not pooled from old splits.
-    for domain in ['ate', 'cate']:
-        s = next(s for s in suites if s['domain'] == domain)
-        assert s['id'] == domain + '-fixed-collection-report'
-        assert not s['derived'] and s['source']['file'] == 'ATE_CATE.pdf'
-        assert s['tables'] == 2000 and s['sample_size'] == 500
-        assert s['dgp_families'] == 13
-        assert [[r[k] for k in keys] for r in s['rows']] == expected_values[s['id']]
-    # The other domains remain unchanged.
-    iv = next(s for s in suites if s['domain'] == 'iv')
-    assert len(iv['rows']) == 3 and all(r['variance'] is None for r in iv['rows'])
-    assert iv['rows'][0]['method'] == 'IV-PFN' and iv['rows'][1]['length'] > 100000
-
-    for domain in ['ate', 'cate', 'mediation', 'iv', 'proximal', 'did_sc', 'nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']:
-        page.locator('[data-t="' + domain + '"]').click()
-        assert page.locator('.metric-card').count() == 6 and page.locator('#main-panel svg').count() == 0
-        assert page.locator('#test-protocol, #dgp-details, #protocol-content, #dgp-content, #exception-note').count() == 0
-        assert all(t == '5-fold' for t in page.locator('.method-config').all_inner_texts())
-        body_text = page.locator('body').inner_text()
-        for removed in ['bootstrap-SE normal interval', 'IF normal interval', 'Proximal series-IV/GMM', 'Five-context distribution mixture', 'Evaluation details & aggregation', 'Per-configuration results', 'B = 50', 'B = 100', 'B = 200']:
-            assert removed not in body_text, (domain, removed)
-        for cell in page.locator('#metric-tables td:first-child').all():
-            if cell.locator('.mname').count() and cell.locator('.mname').inner_text() == 'RF + bootstrap':
-                assert cell.inner_text().strip() == 'RF + bootstrap'
-                assert cell.locator('a, .method-config').count() == 0
-        assert page.locator('.method-config').count() == (6 if domain in ['mediation', 'proximal', 'did_sc'] else 0)
-        if domain in ['ate', 'cate', 'mediation', 'proximal', 'did_sc']:
-            assert page.locator('.method-ref-name').count() == 6
-        if domain in ['nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']:
-            assert page.locator('.empty-cell').count() == 6 and page.locator('#export-btn').is_disabled()
-
-    # Both updated domains show all four reported rows at source precision.
-    hf_new = 'https://huggingface.co/fuyao11/CausalPFN-ATE-CATE'
-    paper = 'https://proceedings.neurips.cc/paper_files/paper/2025/hash/e3d3db07c1bfb63e1d0b998996de1d12-Abstract-Conference.html'
-    for domain in ['ate', 'cate']:
-        page.locator('[data-t="' + domain + '"]').click()
-        text = page.locator('#metric-tables').inner_text()
-        assert '≈' not in text
-        assert page.locator('.method-config').count() == 0  # CausalPFN has no extra five-fold wrapper.
-        for k in keys:
-            cells = page.locator('[data-metric="' + k + '"] tbody td.num').all_inner_texts()
-            values = [v[keys.index(k)] for v in expected_values[domain + '-fixed-collection-report']]
-            def fmt(v):
-                if k == 'coverage':
-                    return f'{v * 100:.2f}%'
-                digits = 3 if k == 'time_s' else 4
-                sign = '−' if v < 0 else '+' if k == 'bias' and v > 0 else ''
-                return sign + f'{abs(v):.{digits}f}'
-            assert cells == [fmt(v) for v in values], (domain, k, cells)
-        assert page.locator('.method-ref-name').first.get_attribute('href') == paper
-        page.locator('#method-references').evaluate('(el)=>el.open=true')
-        assert page.locator('.reference-secondary').get_attribute('href') == hf_new
-        assert page.locator('a[href="https://huggingface.co/vdblm/causalpfn"]').count() == 0
-        page.locator('#method-references').evaluate('(el)=>el.open=false')
-        page.locator('#table').screenshot(path=str(out / (domain + '-test-tables.png')))
-        with page.expect_download() as download:
-            page.locator('#export-btn').click()
-        csv_path = out / (domain + '-test.csv')
-        download.value.save_as(csv_path)
-        with csv_path.open() as f:
-            exported = list(csv.DictReader(f))
-        assert len(exported) == 2 and all(r['source_file'] == 'ATE_CATE.pdf' for r in exported)
-        assert [[float(r[k]) for k in keys] for r in exported] == expected_values[domain + '-fixed-collection-report']
-        assert all(r['approximate_metrics'] == '' for r in exported)
-        page.locator('[data-fam="classical"]').click()
-        assert page.locator('[data-metric="bias"] tbody tr').count() == 1
-        page.locator('[data-fam="all"]').click()
-        page.locator('#q').fill('CausalPFN')
-        assert page.locator('[data-metric="rmse"] tbody tr').count() == 1
-        page.locator('#q').fill('')
-
+    assert page.title()=='Statistical Inference Arena'
+    suites=page.evaluate('ArenaTestView.getSuites()')
+    assert len(suites)==6 and len({s['domain'] for s in suites})==6
+    for domain,values in EXPECTED.items():
+        s=next(s for s in suites if s['domain']==domain)
+        assert [[r[k] for k in KEYS] for r in s['rows']]==values,domain
+        assert all(r['group']=='Test' and not r.get('approximate_metrics') for r in s['rows'])
+        if domain not in ['iv','mediation']:
+            assert s==next(x for x in UNIFIED['suites'] if x['id']==s['id'])
+    assert len(next(s for s in suites if s['domain']=='mediation')['dgp_results'])==26
+    assert len(next(s for s in suites if s['domain']=='proximal')['dgp_results'])==8
+    assert page.locator('#tabs [data-t]').count()==10
+    assert page.locator('[data-t="ate"]').inner_text()=='Average Treatment Effect'
+    assert page.locator('[data-t="cate"]').inner_text()=='Conditional Average Treatment Effect'
+    for domain in DOMAINS:
+        page.locator(f'[data-t="{domain}"]').click()
+        assert page.locator('.metric-card').count()==6
+        assert page.locator('#main-panel svg, #suite-info, #suite-label, #suite-select, #test-protocol, #dgp-details, #contributors, [data-split]').count()==0
+        body=page.locator('body').inner_text()
+        for forbidden in ['Synthetic Control','synthetic-control','2,000 tables','Target CATE','Nominal coverage','bootstrap-SE normal interval','IF normal interval','Proximal series-IV/GMM','Five-context distribution mixture','Evaluation details & aggregation','Per-configuration results','Six metrics, presented as tables','Ten research domains. Six metrics. One Test view.']:
+            assert forbidden not in body,(domain,forbidden)
+        assert all(t=='5-fold' for t in page.locator('.method-config').all_inner_texts())
+        if domain in EXPECTED:
+            assert page.locator('.method-ref-name').count()==6,domain
+            assert page.locator('.method-config').count()==(6 if domain in ['mediation','iv','proximal','did_sc'] else 0)
+            assert page.locator('[data-metric="rmse"] tbody tr').count()==2
+            for cell in page.locator('#metric-tables td:first-child').all():
+                if cell.locator('.mname').count() and cell.locator('.mname').inner_text()=='RF + bootstrap':
+                    assert cell.inner_text()=='RF + bootstrap'
+                    assert cell.locator('a, .method-config').count()==0
+        else:
+            assert page.locator('.empty-cell').count()==6 and page.locator('#export-btn').is_disabled()
     page.locator('[data-t="did_sc"]').click()
-    did_text = page.locator('#metric-tables').inner_text()
-    for v in ['+0.001012', '−0.014595', '0.018648', '0.083437', '0.136526', '0.289151', '0.466152', '0.826107', '94.85%', '95.65%', '0.135786', '89.779984']:
-        assert v in did_text, v
-    assert '≈' not in did_text and 'DirectATT' not in did_text and 'Not evaluated' not in did_text
-    assert page.locator('[data-metric="rmse"] tbody tr').count() == 2
-    hf = 'https://huggingface.co/lisuo/PFN-DiD/tree/b7ab973ce6142e3bf34e11aa6db66b3bc5fc5c6a'
-    assert page.locator('.method-ref-name').first.get_attribute('href') == hf
-    assert page.locator('#test-protocol, #dgp-details, #protocol-content, #dgp-content').count() == 0
-    page.locator('#table').screenshot(path=str(out / 'did-test-tables.png'))
-    with page.expect_download() as download:
-        page.locator('#export-btn').click()
-    download.value.save_as(out / 'did-test.csv')
-    with (out / 'did-test.csv').open() as f:
-        exported = list(csv.DictReader(f))
-    assert len(exported) == 2 and float(exported[1]['time_s']) == 89.779984
-    assert exported[0]['source_file'] == 'PFN-DiD test.pdf'
-
-    page.locator('[data-t="proximal"]').click()
-    assert page.locator('#suite-select option').count() == 2
-    assert page.locator('#suite-select').input_value() == 'proximal-unified-2026-11-16-normalized'
-    norm_text = page.locator('#metric-tables').inner_text()
-    for v in ['normalized', '+0.0219', '+0.0161', '0.0146', '0.6718', '0.1229', '0.8196', '0.4447', '0.8475', '96.50%', '97.35%', '0.997', '80.873']:
-        assert v in norm_text, v
-    assert '≈' not in norm_text and 'B = 200' not in norm_text
-    assert page.locator('.method-ref-name').first.get_attribute('href') == 'https://arxiv.org/abs/2610.08078v2'
-    assert page.locator('#test-protocol, #dgp-details').count() == 0
-    page.locator('#table').screenshot(path=str(out / 'proximal-normalized-tables.png'))
-    page.locator('#suite-select').select_option('proximal-unified-2026-11-16-original')
-    raw_text = page.locator('#metric-tables').inner_text()
-    for v in ['+0.0895', '+0.0454', '0.1955', '11.7071', '0.4511', '3.4210', '1.5574', '2.9586']:
-        assert v in raw_text, v
-    assert 'normalized' not in raw_text
-    assert '34.1062' not in page.locator('#main-panel').inner_text()
-    page.locator('#table').screenshot(path=str(out / 'proximal-original-tables.png'))
-    with page.expect_download() as download:
-        page.locator('#export-btn').click()
-    download.value.save_as(out / 'proximal-original-test.csv')
-    with (out / 'proximal-original-test.csv').open() as f:
-        exported = list(csv.DictReader(f))
-    assert len(exported) == 2 and float(exported[1]['variance']) == 11.7071
-    assert exported[0]['source_file'] == 'Proximal_Unified_20261116_PublicReport.pdf'
-    # Reference links and table controls survive re-rendering.
+    assert page.locator('#hero-title').inner_text()=='Difference-in-Differences'
+    assert page.locator('.method-ref-name').first.get_attribute('href')=='https://huggingface.co/lisuo/PFN-DiD/tree/b7ab973ce6142e3bf34e11aa6db66b3bc5fc5c6a'
+    page.locator('[data-t="iv"]').click()
+    exact={'bias':['+0.012','+0.022'],'variance':['0.072','0.099'],'rmse':['0.268','0.316'],'length':['0.875','1.111'],'coverage':['95.65%','90.25%'],'time_s':['0.366','179.9']}
+    for key,values in exact.items():
+        assert page.locator(f'[data-metric="{key}"] tbody .num').all_inner_texts()==values,key
+    assert all(h==NEW_HF for h in page.locator('.method-ref-name').evaluate_all('(els)=>els.map(e=>e.href)'))
+    assert 'trim' not in page.locator('#metric-tables').inner_text().lower()
+    page.locator('#method-references').evaluate('(el)=>el.open=true')
+    assert page.locator('.reference-title').get_attribute('href')==NEW_HF
+    page.locator('#method-references').evaluate('(el)=>el.open=false')
+    page.screenshot(path=str(OUT/'iv-v03-desktop.png'),full_page=True)
+    page.locator('#table').screenshot(path=str(OUT/'iv-v03-tables.png'))
+    with page.expect_download() as d:page.locator('#export-btn').click()
+    d.value.save_as(OUT/'iv-v03.csv')
+    exported=list(csv.DictReader((OUT/'iv-v03.csv').open()))
+    assert len(exported)==2 and [[float(r[k]) for k in KEYS] for r in exported]==EXPECTED['iv']
+    assert exported[1]['method']=='RF + bootstrap' and exported[1]['source_method']=='RF trim + bootstrap'
     page.locator('[data-fam="classical"]').click()
-    assert page.locator('[data-metric="bias"] tbody tr').count() == 1
+    assert page.locator('[data-metric="bias"] tbody tr').count()==1
     page.locator('[data-fam="all"]').click()
-    page.locator('#q').fill('ProximalFM')
-    assert page.locator('[data-metric="bias"] tbody tr').count() == 1
+    page.locator('#q').fill('IV-PFN')
+    assert page.locator('[data-metric="bias"] tbody tr').count()==1
     page.locator('#q').fill('')
     page.locator('[data-sort="rmse"]').click()
-    assert page.locator('[data-metric="rmse"] tbody tr').first.get_attribute('data-method') == 'ProximalFM'
-    page.locator('[data-t="mediation"]').click()
-    assert page.locator('#dgp-content').count() == 0
+    assert page.locator('[data-metric="rmse"] tbody .mname').first.inner_text()=='IV-PFN'
+    page.locator('[data-sort="rmse"]').click()
+    assert page.locator('[data-metric="rmse"] tbody .mname').first.inner_text()=='RF + bootstrap'
+    # Stale unit-selection URLs cannot activate an alternate Proximal leaderboard.
+    page.evaluate("location.hash='domain=proximal&suite=proximal-unified-2026-11-16-original';readHash();render();")
+    assert page.locator('[data-metric="rmse"] tbody .num').all_inner_texts()==['0.8196','0.1229']
+    assert page.evaluate('current().id')=='proximal-unified-2026-11-16-normalized'
+    assert 'normalized' in page.locator('#metric-tables').inner_text()
+    page.locator('#table').screenshot(path=str(OUT/'proximal-single-tables.png'))
+    with page.expect_download() as d:page.locator('#export-btn').click()
+    d.value.save_as(OUT/'proximal-single.csv')
+    exported=list(csv.DictReader((OUT/'proximal-single.csv').open()))
+    assert [[float(r[k]) for k in KEYS] for r in exported]==EXPECTED['proximal']
+    page.locator('[data-t="ate"]').click()
+    assert '77.63%' in page.locator('#metric-tables').inner_text()
+    page.locator('#method-references').evaluate('(el)=>el.open=true')
+    assert page.locator('.reference-secondary').get_attribute('href')=='https://huggingface.co/fuyao11/CausalPFN-ATE-CATE'
     page.locator('#theme-btn').click()
-    assert page.locator('html').get_attribute('data-theme') == 'dark'
-
-    mobile = browser.new_page(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True)
-    mobile.on('pageerror', lambda e: errors.append(str(e)))
-    if local:
-        mobile.route('https://fonts.googleapis.com/**', lambda route: route.abort())
-        mobile.route('https://fonts.gstatic.com/**', lambda route: route.abort())
-    load_page(mobile, 'did_sc')
-    mobile.wait_for_function("document.body.dataset.testView==='ready'")
-    assert mobile.evaluate('document.documentElement.scrollWidth <= innerWidth')
-    assert mobile.locator('[data-metric="rmse"] tbody tr').count() == 2
-    mobile.locator('#menu-btn').click()
-    mobile.locator('[data-t="proximal"]').click()
-    assert mobile.locator('#hero-title').inner_text() == 'Proximal Causal Inference'
-    assert mobile.locator('#menu-btn').get_attribute('aria-expanded') == 'false'
-    assert mobile.evaluate('document.documentElement.scrollWidth <= innerWidth')
-    for domain in ['ate', 'cate']:
-        mobile.locator('#menu-btn').click()
-        mobile.locator('[data-t="' + domain + '"]').click()
-        assert mobile.locator('#hero-title').inner_text() == {'ate': 'Average Treatment Effect', 'cate': 'Conditional Average Treatment Effect'}[domain]
-        assert mobile.evaluate('document.documentElement.scrollWidth <= innerWidth')
-        assert mobile.locator('.method-config').count() == 0
-        assert mobile.locator('.reference-secondary').get_attribute('href') == hf_new
-    mobile.screenshot(path=str(out / 'ate-cate-mobile.png'), full_page=True)
-    assert not errors, errors
-    report = {'status': 'passed', 'commit': sha, 'url': base, 'tables_per_domain': 6, 'populated_domains': 6, 'suites': 7, 'chart_count': 0, 'new_direct_report_suites': list(expected_values), 'source_proximal_detail_rows': 16, 'technical_sections_in_dom': 0, 'rf_config_labels': 0, 'ate_cate_huggingface': hf_new, 'pfn_did_reference': hf, 'javascript_errors': errors}
-    (out / 'test-view-report.json').write_text(json.dumps(report, indent=2))
-    print(json.dumps(report, indent=2))
+    assert page.locator('html').get_attribute('data-theme')=='dark'
+    assert page.locator('.brand-logo').evaluate('(e)=>e.complete&&e.naturalWidth>0')
+    mobile=browser.new_page(viewport={'width':390,'height':844},is_mobile=True,has_touch=True)
+    mobile.on('pageerror',lambda e:errors.append(str(e)))
+    load_page(mobile,'domain=iv')
+    assert mobile.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    assert mobile.locator('[data-metric="rmse"] tbody tr').count()==2
+    mobile.locator('#menu-btn').click();mobile.locator('[data-t="did_sc"]').click()
+    assert mobile.locator('#hero-title').inner_text()=='Difference-in-Differences'
+    assert mobile.locator('#menu-btn').get_attribute('aria-expanded')=='false'
+    mobile.locator('#menu-btn').click();mobile.locator('[data-t="proximal"]').click()
+    assert mobile.evaluate('document.documentElement.scrollWidth<=innerWidth')
+    mobile.screenshot(path=str(OUT/'compact-mobile.png'),full_page=True)
+    assert not errors,errors
+    report={'status':'passed','commit':SHA,'url':BASE,'populated_domains':6,'suites':6,'tables_per_domain':6,'iv_v03_values':EXPECTED['iv'],'iv_reference':NEW_HF,'metadata_and_unit_controls':0,'proximal_active_scale':'normalized','javascript_errors':errors,'source_sha256':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in (ROOT/'data').glob('*.json')}}
+    (OUT/'test-view-report.json').write_text(json.dumps(report,indent=2))
+    print(json.dumps(report,indent=2))
     browser.close()
-
