@@ -21,6 +21,7 @@
 <link rel="stylesheet" href="assets/references.css?v=1">
 <link rel="stylesheet" href="assets/test-view.css?v=single-table-1">
 <link rel="stylesheet" href="assets/submit-method.css?v=black-submit-1">
+<link rel="stylesheet" href="assets/comparison-charts.css?v=1">
 </head>
 <body>
 <a class="skip" href="#main-panel">Skip to leaderboard</a>
@@ -31,7 +32,7 @@
 <div class="nav-caption">RESEARCH DOMAINS <span>10</span></div>
 <div id="tabs" role="tablist" aria-label="Research domains" aria-orientation="vertical"></div>
 <div class="sidebar-bottom"><div class="nav-caption">RESOURCES</div>
-<a href="#methodology"><span>Evaluation methodology</span><span>↗</span></a>
+<a href="#methodology"><span>Result comparisons</span><span>↗</span></a>
 <a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer"><span>Website on GitHub</span><span>↗</span></a>
 <div class="sidebar-foot"><span>Statistical Inference Arena</span><span>Research benchmark</span></div>
 </div></aside>
@@ -53,13 +54,9 @@
 <details id="method-references" class="method-references" hidden><summary>Method references</summary><div id="reference-list" class="reference-list"></div></details>
 <div class="registry-row"><a id="registry-link" target="_blank" rel="noopener noreferrer">Browse DGP registry ↗</a><span>Research repository access required.</span></div>
 </main>
-<section class="method" id="methodology">
-<div class="method-heading"><div class="section-label">EVALUATION METHODOLOGY</div><h2>More than a single score.</h2><p>We evaluate estimation accuracy, uncertainty quality, and computational efficiency.</p></div>
-<div class="method-grid">
-<article><span class="method-no">01</span><h3>Estimation accuracy</h3><p>Measures how accurately and consistently a method estimates the quantity of interest. Bias captures systematic over- or underestimation, Variance reflects variability, and RMSE summarizes the overall size of estimation errors. Together, they distinguish methods that are close to the truth from those that are biased or unstable.</p></article>
-<article><span class="method-no">02</span><h3>Confidence intervals</h3><p>Measures whether uncertainty intervals are reliable and informative. Coverage shows how often intervals contain the true value, while Length describes their width. Reading them together helps identify methods that provide dependable uncertainty estimates without producing intervals so wide that they offer little practical information.</p></article>
-<article><span class="method-no">03</span><h3>Computational efficiency</h3><p>Measures the time required to produce both an estimate and its uncertainty interval. Inference time reflects the computational cost of obtaining a complete result, helping users assess whether a method is practical for repeated analyses and large-scale applications alongside its accuracy and interval quality.</p></article>
-</div>
+<section id="methodology" class="comparison-charts" aria-label="Test result comparisons">
+<article class="comparison-card" aria-labelledby="rmse-time-title"><h3 id="rmse-time-title">RMSE vs Time</h3><div id="rmse-time-chart" class="comparison-plot"></div></article>
+<article class="comparison-card" aria-labelledby="coverage-length-title"><h3 id="coverage-length-title">Coverage vs Length</h3><div id="coverage-length-chart" class="comparison-plot"></div></article>
 </section>
 <footer><a class="footer-brand" href="#domain=mediation"><img src="assets/statsarena-logo.webp" alt="" width="24" height="24">Statistical Inference Arena</a><span>Statistical Inference Arena</span><a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer">Website source ↗</a></footer>
 </div></div>
@@ -69,5 +66,6 @@
 <script src="assets/test-view.js?v=no-share-1"></script>
 <script src="assets/layout.js?v=arena-2"></script>
 <script src="assets/submit-method.js?v=github-intake-1"></script>
+<script src="assets/comparison-charts.js?v=1"></script>
 </body></html>
 
