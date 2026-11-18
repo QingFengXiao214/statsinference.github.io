@@ -30,9 +30,14 @@
 .track-page code{font-family:var(--mono);font-size:.92em}
 .track-page .grid-scroll{overflow-x:auto}
 .track-page table{width:100%;min-width:0;border-collapse:collapse;margin:12px 0;background:var(--surface);font-size:14px}
-.track-page th,.track-page td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+.track-page th,.track-page td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top;white-space:normal;font-size:inherit}
 .track-page th{font-weight:600;background:var(--hover)}
 .track-page .metrics td:not(:first-child),.track-page .metrics th:not(:first-child){text-align:right}
 .track-page .metrics td:not(:first-child){white-space:nowrap}
+.study-preview .grid-scroll{max-width:32rem}
+.track-page .study-preview table{min-width:25rem;font-variant-numeric:tabular-nums}
+.study-preview caption{text-align:left;color:var(--muted);margin-bottom:.4rem}
+.track-page .study-preview th,.track-page .study-preview td{text-align:right}
 .track-foot{padding:22px 0 42px;color:var(--muted);font-size:13px}
 @media(max-width:720px){.track-section .datasets{grid-template-columns:minmax(0,1fr)}.track-section{padding:22px 0}.track-brand{font-size:16px}.track-brand img{width:27px;height:27px}.target-formula{font-size:20px}.track-page table{font-size:13px}.track-page header .wrap{min-height:55px}}
+@media(max-width:480px){.track-page th,.track-page td{padding:8px 5px}}
