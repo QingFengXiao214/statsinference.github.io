@@ -1,8 +1,10 @@
-"""Archive validated public model-link issues. Submitted model code is never fetched or run."""
+"""Register public method submissions for review without fetching participant code."""
 from __future__ import annotations
+from html import escape
 import json
 import os
 import re
+from urllib.parse import quote, urlsplit
 import urllib.request
 from pathlib import Path
 
@@ -12,6 +14,18 @@ DOMAINS = {'ate', 'cate', 'mediation', 'iv', 'proximal', 'did_sc', 'nonparametri
 URL_RE = re.compile(r'https://huggingface\.co/[A-Za-z0-9][A-Za-z0-9_-]*/[A-Za-z0-9][A-Za-z0-9._-]*(?:/tree/[A-Za-z0-9][A-Za-z0-9._-]*)?/?\Z')
 RESERVED = {'spaces', 'datasets', 'organizations', 'api', 'settings', 'collections', 'join', 'login'}
 MARKER = '<!-- arena-method-submission:v1 -->'
+GITHUB_REPO = re.compile(r'https://github\.com/[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+/?\Z')
+MEDIATION_FIELDS = {
+    'Method name': 'method_name',
+    'Mediation method link': 'method_url',
+    'Release or commit': 'version',
+    'Run instructions or analysis procedure': 'run_instructions',
+    'Estimator and interval': 'estimator',
+    'Training and data exposure': 'training_exposure',
+    'Public development results': 'public_dev_results',
+    'Official predictions': 'official_predictions_url',
+}
+OPTIONAL_FIELDS = {'public_dev_results', 'official_predictions_url'}
 
 
 def canonical_url(value: object) -> str | None:
@@ -23,24 +37,70 @@ def canonical_url(value: object) -> str | None:
     return value.rstrip('/')
 
 
+def public_web_link(value: str) -> bool:
+    # Links are archived as references; the intake never downloads them.
+    if len(value) > 2048 or re.search(r'[\s<>\\\x00-\x1f]', value):
+        return False
+    try:
+        parsed = urlsplit(value)
+        return parsed.scheme == 'https' and bool(parsed.hostname) and parsed.username is None
+    except ValueError:
+        return False
+
+
+def parse_mediation_form(body: str) -> dict | None:
+    headings = '|'.join(map(re.escape, MEDIATION_FIELDS))
+    sections = re.split(rf'^### ({headings})[ \t]*\n', body, flags=re.M)
+    fields = {}
+    for heading, block in zip(sections[1::2], sections[2::2]):
+        value = block.strip()
+        if value and value != '_No response_':
+            fields[MEDIATION_FIELDS[heading]] = value
+    for key in MEDIATION_FIELDS.values():
+        if key not in OPTIONAL_FIELDS and key not in fields:
+            return None
+    if any(not public_web_link(fields[key]) for key in OPTIONAL_FIELDS if key in fields):
+        return None
+    url = fields['method_url']
+    hf = canonical_url(url)
+    if hf:
+        fields['method_url'] = hf
+        fields['huggingface_url'] = hf
+    elif len(url) <= 1024 and GITHUB_REPO.fullmatch(url) and '..' not in url:
+        repo = url.rstrip('/').removesuffix('.git')
+        if repo.endswith(('/', '/.')):
+            return None
+        fields['method_url'] = repo
+    elif not public_web_link(url) or 'official_predictions_url' not in fields:
+        return None
+    return {'schema_version': 2, 'domain': 'mediation', **fields}
+
+
+def submission_fields(body: str) -> dict | None:
+    if MARKER not in body:
+        return parse_mediation_form(body)
+    match = re.search(r'^### Hugging Face model link\n+([^\n]+)\s*\n', body, re.M)
+    url = canonical_url(match.group(1)) if match else None
+    if not url:
+        return None
+    domain_match = re.search(r'^### Research domain\n+([a-z_]+)\s*\n', body, re.M)
+    domain = domain_match.group(1) if domain_match else 'unspecified'
+    return {'schema_version': 1, 'model': '/'.join(url.split('/')[3:5]), 'huggingface_url': url,
+            'domain': domain if domain in DOMAINS else 'unspecified'}
+
+
 def parse_issue(issue: dict) -> dict | None:
     """Only typed link submissions are accepted; all fields are data, never commands."""
     if issue.get('pull_request') or not str(issue.get('title', '')).startswith('[Method submission] '):
         return None
     body = issue.get('body') or ''
-    if not isinstance(body, str) or len(body) > 10000 or MARKER not in body:
+    if not isinstance(body, str) or len(body) > 10000:
         return None
-    body = body.replace('\r\n', '\n')
-    match = re.search(r'^### Hugging Face model link\n+([^\n]+)\s*\n', body, re.M)
-    url = canonical_url(match.group(1)) if match else None
+    fields = submission_fields(body.replace('\r\n', '\n'))
     number = issue.get('number')
     author = (issue.get('user') or {}).get('login', '')
-    if not url or type(number) is not int or number < 1 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,38}(?:\[bot\])?', author):
+    if not fields or type(number) is not int or number < 1 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,38}(?:\[bot\])?', author):
         return None
-    domain_match = re.search(r'^### Research domain\n+([a-z_]+)\s*\n', body, re.M)
-    domain = domain_match.group(1) if domain_match else 'unspecified'
-    if domain not in DOMAINS:
-        domain = 'unspecified'
     dates = [issue.get(k, '') for k in ['created_at', 'updated_at']]
     if not all(isinstance(d, str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', d) for d in dates):
         return None
@@ -49,9 +109,8 @@ def parse_issue(issue: dict) -> dict | None:
         return None
     is_test = str(issue['title']).startswith('[Method submission] [TEST] ')
     return {
-        'schema_version': 1, 'issue_number': number,
-        'model': '/'.join(url.split('/')[3:5]), 'huggingface_url': url,
-        'domain': domain, 'submitted_by': author, 'created_at': dates[0], 'updated_at': dates[1],
+        'schema_version': fields.pop('schema_version'), 'issue_number': number, **fields,
+        'submitted_by': author, 'created_at': dates[0], 'updated_at': dates[1],
         'status': state, 'issue_url': f'https://github.com/{SOURCE}/issues/{number}',
         'is_test': is_test,
     }
@@ -91,7 +150,13 @@ def write_archive(issues: list[dict], root: Path = ROOT) -> int:
     saved.sort(key=lambda r: r['issue_number'], reverse=True)
     lines = ['# Method submissions', '', '| Method | Domain | Submitted by | Date | Status | Submission |', '| --- | --- | --- | --- | --- | --- |']
     for r in saved:
-        lines.append(f"| [{r['model']}]({r['huggingface_url']}) | {r['domain']} | {r['submitted_by']} | {r['created_at'][:10]} | {r['status']} | [#{r['issue_number']}]({r['issue_url']}) |")
+        if r['schema_version'] == 2:
+            # Keep submitted names and URL punctuation inside one Markdown cell.
+            name = re.sub(r'([\\|\[\]`*_~])', r'\\\1', escape(' '.join(r['method_name'].split())))
+            link = quote(r['method_url'], safe=':/?#@!$&*+,;=%-._~')
+        else:
+            name, link = r['model'], r['huggingface_url']
+        lines.append(f"| [{name}]({link}) | {r['domain']} | {r['submitted_by']} | {r['created_at'][:10]} | {r['status']} | [#{r['issue_number']}]({r['issue_url']}) |")
     if not saved:
         lines += ['', 'No method submissions yet.']
     (received / 'README.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')

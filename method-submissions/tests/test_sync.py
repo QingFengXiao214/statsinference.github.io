@@ -13,6 +13,37 @@ def issue(n=1):
     return {'number': n, 'title': '[Method submission] Brownight/tabpfn-iv-adapter-v0.3', 'body': f'### Hugging Face model link\n{URL}\n\n### Research domain\niv\n\n{m.MARKER}', 'user': {'login': 'brownight'}, 'state': 'open', 'created_at': '2026-11-17T03:00:00Z', 'updated_at': '2026-11-17T03:00:00Z'}
 
 class ArchiveTests(unittest.TestCase):
+    def test_mediation_form_and_legacy_records_share_archive(self):
+        fields = {
+            'Method name': 'OLS product', 'Mediation method link': 'https://github.com/example/r-mediation/',
+            'Release or commit': 'v1.2', 'Run instructions or analysis procedure': 'Rscript run.R',
+            'Estimator and interval': 'Coefficient product with a percentile bootstrap.',
+            'Training and data exposure': 'No pretraining. Development kit used for testing.',
+            'Public development results': '_No response_',
+        }
+        entry = issue(2)
+        entry['title'] = '[Method submission] Mediation'
+        entry['body'] = '\r\n\r\n'.join(f'### {label}\r\n\r\n{value}' for label, value in fields.items())
+        parsed = m.parse_issue(entry)
+        self.assertEqual((parsed['schema_version'], parsed['domain'], parsed['method_url']),
+                         (2, 'mediation', 'https://github.com/example/r-mediation'))
+        self.assertNotIn('public_dev_results', parsed)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            m.write_archive([issue(), entry], root)
+            index = (root / 'received/README.md').read_text()
+            self.assertIn(URL, index)
+            self.assertIn('https://github.com/example/r-mediation', index)
+        fields['Mediation method link'] = URL
+        fields['Public development results'] = 'https://example.org/public-dev.csv'
+        entry['body'] = '\n\n'.join(f'### {k}\n\n{v}' for k,v in fields.items())
+        self.assertEqual(m.parse_issue(entry)['public_dev_results'], fields['Public development results'])
+        self.assertEqual(m.parse_issue(entry)['huggingface_url'], URL)
+        self.assertIsNone(m.parse_issue({**entry, 'body': entry['body'].replace(URL, 'https://github.com.evil.test/org/model')}))
+        self.assertIsNone(m.parse_issue({**entry, 'body': entry['body'].replace('### Run instructions', '### Missing field')}))
+        entry['body'] = entry['body'].replace(URL, 'https://example.org/method-card') + '\n\n### Official predictions\n\nhttps://example.org/predictions.csv'
+        self.assertEqual(m.parse_issue(entry)['official_predictions_url'], 'https://example.org/predictions.csv')
+        self.assertIsNone(m.parse_issue({**entry, 'body': entry['body'].replace('https://example.org/predictions.csv', 'javascript:alert(1)')}))
     def test_valid_link(self):
         self.assertEqual(m.parse_issue(issue())['huggingface_url'], URL)
         self.assertEqual(m.canonical_url(URL+'/'), URL)

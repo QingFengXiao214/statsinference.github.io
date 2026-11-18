@@ -36,6 +36,10 @@
     if (dialog.open) return;
     const selected = document.querySelector('#tabs [aria-selected="true"]')?.dataset.t;
     domain = domains.has(selected) ? selected : '';
+    if (domain === 'mediation') {
+      window.location.assign(issueEndpoint + '?template=mediation-method.yml');
+      return;
+    }
     message(''); updateSend();
     dialog.showModal(); trigger.setAttribute('aria-expanded', 'true'); input.focus();
   });

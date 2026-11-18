@@ -449,6 +449,10 @@ with sync_playwright() as p:
     for domain in DOMAINS:
         page.locator(f'[data-t="{domain}"]').click()
         assert page.locator(f'#tab-{domain}').get_attribute('aria-selected') == 'true'
+        benchmark_card = page.locator('#benchmark-card-link')
+        assert benchmark_card.is_visible() == (domain == 'mediation')
+        if domain == 'mediation':
+            assert benchmark_card.get_attribute('href') == 'mediation/'
         page.wait_for_function('(domain)=>document.querySelector("#domain-illustration")?.dataset.domain===domain', arg=domain)
         assert page.locator('#domain-illustration svg').get_attribute('role') == 'img'
         assert page.locator('#domain-illustration svg desc').text_content()
@@ -504,6 +508,7 @@ with sync_playwright() as p:
         assert row.locator('.method-toggle').get_attribute('aria-expanded') == 'true'
         detail = page.locator('#' + row.locator('.method-toggle').get_attribute('aria-controls'))
         assert detail.is_visible() and detail.locator('.method-detail-grid').count() == 1
+        assert detail.locator('a[href="mediation/"]').count() == int(domain == 'mediation')
         assert detail.locator('.method-detail-grid > div > strong').all_text_contents() == [
             'Method', 'Estimator / model', 'Folds / contexts', 'Bootstrap', 'Configuration']
         assert detail.locator('.method-detail-extra').count() == 1

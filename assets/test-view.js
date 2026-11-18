@@ -157,6 +157,7 @@ function methodDetails(r,index){
  if(s.id==='did-test-2026-11-16')references.push('<div><strong>DR-DiD estimator reference</strong> <a class="method-reference-link" href="https://arxiv.org/abs/1812.01723" target="_blank" rel="noopener noreferrer">Sant’Anna and Zhao, Doubly Robust Difference-in-Differences Estimators ↗</a></div>');
  const modelURL=ArenaMethodReferences.safeURL(ref?.huggingface?.url,'huggingface');
  if(modelURL)references.push(`<div><strong>Model</strong> <a class="method-reference-link" href="${esc(modelURL)}" target="_blank" rel="noopener noreferrer">Hugging Face ↗</a></div>`);
+ if(s.domain==='mediation')references.push('<div><strong>Benchmark</strong> <a class="method-reference-link" href="mediation/">Causal Mediation Analysis task and data →</a></div>');
  const referenceSection=references.length?`<div class="method-reference-links">${references.join('')}</div>`:'';
  return `<tr class="method-details-row" id="method-details-${index}"><td colspan="8"><div class="method-details"><div class="method-detail-grid">${facts.map(([label,value],i)=>`<div${i===4?' class="method-detail-extra"':''}><strong>${esc(label)}</strong><p>${esc(value)}</p></div>`).join('')}</div>${referenceSection}</div></td></tr>`;
 }
@@ -259,6 +260,7 @@ function render(){
  for(const b of document.querySelectorAll('[data-t]')){const on=b.dataset.t===task;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
  for(const b of document.querySelectorAll('[data-fam]')){const on=b.dataset.fam===family;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));}
  $('#main-panel').setAttribute('aria-labelledby','tab-'+task);$('#hero-title').textContent=d.name;$('#hero-sub').textContent=d.desc;renderDefinition();
+ $('#benchmark-card-link').hidden=task!=='mediation';
  const comingSoon=loaded&&!loadError&&!current()&&['nonparametric_regression','quantile','semi_supervised','missing_data'].includes(task);
  $('#coming-soon').hidden=!comingSoon;
  document.querySelector('.test-controls').hidden=comingSoon;
