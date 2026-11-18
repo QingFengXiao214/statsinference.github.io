@@ -15,6 +15,7 @@ import time
 import urllib.request
 
 from playwright.sync_api import sync_playwright
+from verify_reviewed_mediation import check_reviewed_mediation
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'verification'
@@ -51,7 +52,7 @@ if not LOCAL:
              'assets/test-references.js', 'assets/comparison-charts.js',
              'assets/comparison-charts.css', 'assets/domain-illustrations.js',
              'assets/arena-overview.js', 'assets/arena-overview.css',
-             'data/results.json', 'data/mediation-fivefold.json',
+             'data/results.json', 'data/mediation-fivefold.json', 'data/mediation-reviewed.json',
              'data/iv-v03.json', 'data/unified-test-2026-11-16.json', 'data/dgp-overview.json']
     for attempt in range(40):
         try:
@@ -323,7 +324,7 @@ def assert_overview(page, suites):
 def assert_medals(page, suite, key):
     nominal = suite.get('nominal_coverage', .95)
     score = lambda r: abs(r[key]) if key == 'bias' else abs(r[key] - nominal) if key == 'coverage' else r[key]
-    ordered = sorted(suite['rows'], key=score)
+    ordered = sorted((r for r in suite['rows'] if r[key] is not None), key=score)
     rank_by_id = {}
     previous, rank = None, 0
     for i, row in enumerate(ordered):
@@ -333,7 +334,7 @@ def assert_medals(page, suite, key):
         previous = score(row)
     names = {1:'gold', 2:'silver', 3:'bronze'}
     for row in page.locator('#leaderboard tbody tr[data-method]').all():
-        rank = rank_by_id[row.get_attribute('data-method')]
+        rank = rank_by_id.get(row.get_attribute('data-method'))
         medal = row.locator('.rank-medal')
         if rank in names:
             assert medal.count() == 1
@@ -424,6 +425,7 @@ errors = []
 with sync_playwright() as p:
     exe = os.environ.get('CHROMIUM_EXECUTABLE')
     browser = p.chromium.launch(**({'executable_path': exe} if exe else {}))
+    check_reviewed_mediation(browser)
     page = browser.new_page(viewport={'width': 1440, 'height': 1050})
     page.on('pageerror', lambda e: errors.append(str(e)))
     load(page)
@@ -444,7 +446,8 @@ with sync_playwright() as p:
     assert page.evaluate('rankDisplay("—")') == '—'
     for domain, expected_values in EXPECTED.items():
         suite = next(s for s in suites if s['domain'] == domain)
-        assert [[r[k] for k in KEYS] for r in suite['rows']] == expected_values, domain
+        historical = [r for r in suite['rows'] if r['status'] != 'reviewed']
+        assert [[r[k] for k in KEYS] for r in historical] == expected_values, domain
 
     for domain in DOMAINS:
         page.locator(f'[data-t="{domain}"]').click()
@@ -475,15 +478,16 @@ with sync_playwright() as p:
         assert page.locator('#coming-soon').is_hidden()
         assert page.locator('#table').is_visible()
         assert headers(page) == HEADINGS, (domain, headers(page))
-        assert page.locator('#leaderboard tbody tr[data-method]').count() == 2
+        assert page.locator('#leaderboard tbody tr[data-method]').count() == len(suite['rows'])
         assert page.locator('#leaderboard tbody .method-details-row').count() == 0
-        assert page.locator('#leaderboard .mname').all_inner_texts().count('Baseline') == 1
+        assert page.locator('#leaderboard .mname').all_inner_texts().count('Baseline') == sum(
+            r['family'] == 'classical' or r['method'] == 'Baseline' for r in suite['rows'])
         check_chart(page, 'rmse-time-chart', domain, 'time_s', 'rmse', suite)
         check_chart(page, 'coverage-length-chart', domain, 'length', 'coverage', suite)
         for key in KEYS:
             page.locator('#rank-metric').select_option(key)
             score = lambda r: abs(r[key]) if key == 'bias' else abs(r[key] - suite['nominal_coverage']) if key == 'coverage' else r[key]
-            ordered = sorted(suite['rows'], key=score)
+            ordered = sorted(suite['rows'], key=lambda r: (r[key] is None, score(r) if r[key] is not None else 0))
             rows = page.locator('#leaderboard tbody tr[data-method]')
             assert_medals(page, suite, key)
             assert [r.get_attribute('data-method') for r in rows.all()] == [r.get('source_method') or r['method'] for r in ordered], (domain, key)
@@ -498,7 +502,8 @@ with sync_playwright() as p:
         # Details open and close without changing metrics or ranks; details are
         # real linked metadata, not an extra method row or a duplicated score.
         page.locator('#rank-metric').select_option('rmse')
-        row = page.locator('#leaderboard tbody tr[data-method]').first
+        identity = next(r.get('source_method') or r['method'] for r in suite['rows'] if r['status'] != 'reviewed')
+        row = page.locator(f'#leaderboard tbody tr[data-method="{identity}"]')
         identity = row.get_attribute('data-method')
         before = row.locator('td[data-metric]').all_inner_texts()
         toggle = row.locator('.method-toggle')
@@ -559,9 +564,9 @@ with sync_playwright() as p:
         page.locator('[data-fam="all"]').click()
 
     page.locator('[data-t="mediation"]').click()
-    pfn_row = page.locator('#leaderboard tbody tr[data-method]').filter(has_text='MediPFN')
+    pfn_row = page.locator('#leaderboard tbody tr[data-method="MediPFN"]')
     pfn_row.locator('.method-toggle').click()
-    pfn = page.locator('#' + page.locator('#leaderboard tbody tr[data-method]').filter(has_text='MediPFN').locator('.method-toggle').get_attribute('aria-controls'))
+    pfn = page.locator('#' + pfn_row.locator('.method-toggle').get_attribute('aria-controls'))
     refs = pfn.locator('.method-reference-links > div')
     paper = refs.filter(has_text='Method reference')
     model = refs.filter(has_text='Hugging Face')

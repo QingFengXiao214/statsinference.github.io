@@ -26,10 +26,12 @@ const METRICS=[
 const metricKeys=METRICS.map(m=>m.key);
 let task='ate',family='all',query='',testSuites=[],loadError='',loaded=false;
 let rankMetric='rmse',sortDirection=1;
+let reviewedError=false;
 const expandedMethods=new Set();
 const domainSuites=()=>testSuites.filter(s=>s.domain===task);
 const current=()=>domainSuites()[0]||null;
-const visibleRows=()=> (current()?.rows||[]).filter(r=>(family==='all'||r.family===family)&&(!query||((r.family==='classical'?'Baseline ':'RFN ')+r.method+' '+r.configuration+' '+r.source_method).toLowerCase().includes(query)));
+const familyNames={pfn:'RFN',classical:'Baseline',other:'Other methods'};
+const visibleRows=()=> (current()?.rows||[]).filter(r=>(family==='all'||r.family===family)&&(!query||[familyNames[r.family],r.method,r.configuration,r.source_method].join(' ').toLowerCase().includes(query)));
 
 // All pooling is explicit and approximate because its inputs are rounded report summaries.
 // Mean metrics use counts. RMSE pools squared errors. Error variance includes between-group means.
@@ -52,14 +54,27 @@ function displayIdentity(domain,r){
  const seed=r.method.match(/ S([12])$/);
  return {method:seed?r.method.replace(/ S[12]$/,''):r.method,configuration:seed?'Training seed '+seed[1]:''};
 }
-function buildTestSuites(raw,med,updates,iv){
+function reviewedMediationRows(data){
+ if(data?.release!=='mediation-v1.0'||!Array.isArray(data.rows))throw Error('Unexpected reviewed release');
+ const issues=new Set();
+ return data.rows.map(row=>{
+  const issue=row.issue_number;
+  if(!Number.isSafeInteger(issue)||issue<1||issues.has(issue)||row.tables!==2000||!['pfn','other'].includes(row.family)||
+   ![row.method,row.version,row.estimator].every(value=>typeof value==='string'&&value.trim())||
+   !ArenaMethodReferences.safeURL(row.method_url,'method')||
+   !metricKeys.every(k=>k==='time_s'&&row[k]===null||finite(row[k])&&(k==='bias'||row[k]>=0)&&(k!=='coverage'||row[k]<=1)))throw Error('Invalid reviewed method');
+  issues.add(issue);
+  return {...row,source_method:'Submission #'+issue,configuration:row.version,status:'reviewed',group:'Test',approximate_metrics:[]};
+ });
+}
+function buildTestSuites(raw,med,updates,iv,reviewed){
  if(raw.schema_version!==1||!Array.isArray(raw.suites)||med.domain!=='mediation')throw Error('Invalid result data');
  if(updates?.schema_version!==1||!Array.isArray(updates.suites))throw Error('Invalid unified Test data');
  if(iv?.domain!=='iv'||iv.id!=='iv-v03-test')throw Error('Invalid IV v0.3 Test data');
  // Show one Proximal release; alternate units remain in the source archive only.
  const activeUpdates=updates.suites.filter(s=>s.domain!=='proximal'||s.metric_scale==='normalized');
  const replaced=new Set([...updates.suites.map(s=>s.domain),'iv']);
- const result=[{...med,summary_kind:'Reported pooled Test results',notes:[],derived:false},...activeUpdates,iv];
+ const result=[{...med,rows:[...med.rows,...reviewed],summary_kind:'Reported pooled Test results',notes:[],derived:false},...activeUpdates,iv];
  for(const source of raw.suites){
   if(source.domain==='mediation'||replaced.has(source.domain))continue;
   const s={id:source.id,domain:source.domain,label:source.domain==='proximal'?(source.metric_scale==='normalized'?'Normalized units':'Original units'):source.label,target:source.target,sample_size:source.sample_size,tables:2000,nominal_coverage:source.nominal_coverage,metric_scale:source.metric_scale,source:source.source,variance_definition:source.variance_definition,timing:source.hardware+'. '+source.timing_scope,protocol:source.comparison_note,rows:[],notes:[],derived:true,summary_kind:'Test summary · derived from rounded source results'};
@@ -111,6 +126,7 @@ function formatMetric(r,k){
 // These details describe the evaluated release, not a model's defaults. Where
 // the submitted evaluation omits a parameter, explicitly say it is unreported.
 function methodFacts(r,s){
+ if(r.status==='reviewed')return [['Method',r.method],['Estimator / model',r.estimator],['Version',r.version],['Evaluation',r.tables.toLocaleString('en-US')+' official tables'],['Configuration','See the linked submission for fitting and interval settings.']];
  const baseline=r.family==='classical';
  const name=baseline?(s.id==='proximal-unified-2026-11-16-normalized'?'Random forest–based proximal baseline':'Random forest'):r.method;
  let estimator=baseline?'Random forest':r.method,folds='Not reported',bootstrap='Not reported',configuration='';
@@ -151,6 +167,11 @@ function methodCell(r,index){
 function methodDetails(r,index){
  const s=current(),ref=ArenaMethodReferences.lookup(task,r),facts=methodFacts(r,s).map(([label,value])=>[label,s?.domain==='iv'&&/\bnot reported\b/i.test(String(value))?'—':value]);
  const references=[];
+ if(r.status==='reviewed'){
+  const url=ArenaMethodReferences.safeURL(r.method_url,'method');
+  if(url)references.push(`<div><strong>Method</strong> <a class="method-reference-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Code or method card ↗</a></div>`);
+  references.push(`<div><strong>Submission</strong> <a class="method-reference-link" href="https://github.com/Statsinference/statsinference.github.io/issues/${r.issue_number}" target="_blank" rel="noopener noreferrer">#${r.issue_number} ↗</a></div>`);
+ }
  const paper=ref?.paper,paperURL=ArenaMethodReferences.safeURL(paper?.url,'paper');
  if(paperURL)references.push(`<div><strong>Method reference</strong> <a class="method-reference-link" href="${esc(paperURL)}" target="_blank" rel="noopener noreferrer">${esc(paper.title||'Paper')} ↗</a>${paper.citation?`<p>${esc(paper.citation)}</p>`:''}</div>`);
  // The DR-DiD paper describes the estimator, not a PFN-DiD-specific model.
@@ -213,6 +234,7 @@ function renderMetrics(){
  $('#rank-metric').title=METRICS.find(m=>m.key===rankMetric).detail;
  $('#export-btn').disabled=!rs.some(r=>r.status!=='not_reported');
  const notes=[];
+ if(task==='mediation'&&reviewedError)notes.push('Reviewed submission results are temporarily unavailable.');
  if(rs.some(r=>r.approximate_metrics?.length))notes.push('≈ Approximate value.');
  if(rs.some(r=>metricKeys.some(k=>!finite(r[k]))))notes.push('— Not reported.');
  $('#table-note').textContent=notes.join(' ');$('#table-note').hidden=!notes.length;
@@ -257,6 +279,14 @@ function renderDefinition(){
 }
 function render(){
  const d=DOMAINS.find(d=>d.id===task);
+ const other=$('#fam-chips [data-fam="other"]');
+ if(current()?.rows.some(r=>r.family==='other')){
+  if(!other){
+   const chip=document.createElement('button');
+   chip.className='chip';chip.type='button';chip.dataset.fam='other';chip.textContent=familyNames.other;
+   $('#fam-chips').append(chip);
+  }
+ }else if(other)other.remove();
  for(const b of document.querySelectorAll('[data-t]')){const on=b.dataset.t===task;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
  for(const b of document.querySelectorAll('[data-fam]')){const on=b.dataset.fam===family;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));}
  $('#main-panel').setAttribute('aria-labelledby','tab-'+task);$('#hero-title').textContent=d.name;$('#hero-sub').textContent=d.desc;renderDefinition();
@@ -294,7 +324,7 @@ function csvCell(v){let s=String(v??'');if(typeof v==='string'&&/^[=+@\t\r-]/.te
 $('#export-btn').addEventListener('click',()=>{
  const s=current();if(!s)return;const keys=['rank','domain','evaluation','method','configuration','source_method',...metricKeys,'approximate_metrics','tables','source_file','aggregation','variance_definition','timing'];
  const ranks=rankMap();
- const rr=sortedRows().map(r=>({...r,method:r.family==='classical'?'Baseline':r.method,rank:ranks.get(r),domain:task,evaluation:'Test',approximate_metrics:r.approximate_metrics.join(';'),source_file:s.source.file,aggregation:s.aggregation,variance_definition:s.variance_definition,timing:s.timing}));
+ const rr=sortedRows().map(r=>({...r,method:r.family==='classical'?'Baseline':r.method,rank:ranks.get(r),domain:task,evaluation:'Test',approximate_metrics:r.approximate_metrics.join(';'),source_file:r.status==='reviewed'?'https://github.com/Statsinference/statsinference.github.io/issues/'+r.issue_number:s.source.file,aggregation:s.aggregation,variance_definition:s.variance_definition,timing:r.status==='reviewed'?(finite(r.time_s)?'Mean per table; protocol in linked submission':'Not reported'):s.timing}));
  const text=[keys.join(','),...rr.map(r=>keys.map(k=>csvCell(r[k])).join(','))].join('\r\n');
  const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='statistical-inference-arena-'+task+'-test.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
@@ -304,4 +334,14 @@ $('#theme-btn').addEventListener('click',()=>theme(document.documentElement.data
 window.addEventListener('hashchange',()=>{readHash();render();});
 window.ArenaTestView=Object.freeze({aggregateRows,getSuites:()=>testSuites,metrics:metricKeys});
 readHash();render();
-Promise.all(['data/results.json','data/mediation-fivefold.json','data/unified-test-2026-11-16.json','data/iv-v03.json'].map(path=>fetch(path+'?view=iv-v03-1',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error('Result data request failed');return r.json();}))).then(([raw,med,updates,iv])=>{testSuites=buildTestSuites(raw,med,updates,iv);loaded=true;render();}).catch(e=>{loaded=true;loadError='Could not load Test results. Please refresh or contact the maintainers.';render();console.error(e);});
+async function fetchData(path){
+ const response=await fetch('data/'+path,{cache:'no-cache'});
+ if(!response.ok)throw Error('Result data request failed');
+ return response.json();
+}
+const reviewedData=fetchData('mediation-reviewed.json').then(reviewedMediationRows).catch(error=>{
+ reviewedError=true;console.error(error);return [];
+});
+Promise.all([fetchData('results.json'),fetchData('mediation-fivefold.json'),fetchData('unified-test-2026-11-16.json'),fetchData('iv-v03.json'),reviewedData]).then(data=>{
+ testSuites=buildTestSuites(...data);loaded=true;render();
+}).catch(error=>{loaded=true;loadError='Could not load Test results. Please refresh or contact the maintainers.';render();console.error(error);});
