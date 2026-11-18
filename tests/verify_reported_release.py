@@ -72,7 +72,7 @@ for r in prox['rows']:
 assert len(prox['dgp_results']) == 26
 assert len(suites['proximal-v3-original']['dgp_results']) == 6
 med = suites['mediation-nie1-meeting-2026-11-12']
-assert len(med['dgp_results']) == 13
+assert 'dgp_results' not in med
 assert med['timing_comparisons'][0]['scope'] == 'previous_model_and_test_set'
 assert sum(len(s['rows']) for s in suites.values()) == 36
 

@@ -12,7 +12,7 @@ Each row uses `group` (`ID` or `OOD`), `method`, `method_id`, `family` (`pfn` or
 
 When `variance_basis` is `square_of_rounded_reported_se`, `variance_is_approximate` is true and `reported_se` is preserved. Display the value with ≈ and explain the conversion. It is not an exact raw empirical variance. Do not reconstruct RMSE from aggregate Bias and Variance.
 
-`dgp_results` contains independently transcribed per-configuration rows. Do not recompute aggregates from rounded per-DGP results. `timing_comparisons` uses an explicit historical cohort with `scope: "previous_model_and_test_set"`; these CPU measurements do not enter current ID/OOD rankings or plots. Copy `median_paired_ratio` from its source, not from ratios of displayed median times.
+`dgp_results` contains independently transcribed per-configuration rows when these are public. Mediation releases publish method and split summaries and keep the official test mechanisms with the evaluators. Do not recompute aggregates from rounded per-DGP results. `timing_comparisons` uses an explicit historical cohort with `scope: "previous_model_and_test_set"`; these CPU measurements do not enter current ID/OOD rankings or plots. Copy `median_paired_ratio` from its source, not from ratios of displayed median times.
 
 `source` records report title, author, date, filename and page/table locators. Only the approved summaries are public; the internal PDF is not included. OOD metadata must identify the reference training stage and held-out units.
 
