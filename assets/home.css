@@ -14,3 +14,12 @@
 .side-home.on{background:var(--hover);border-color:var(--line-strong);font-weight:600}
 @media(max-width:860px){.home-panel{padding-top:28px;min-height:calc(100vh - 100px)}.home-hero{gap:24px;padding-bottom:26px}.home-mark{width:150px;height:150px}.home-mark img{width:116px;height:116px}}
 @media(max-width:560px){.home-hero{gap:12px;align-items:flex-start}.home-kicker{font-size:9px}.home-hero h1{font-size:50px;letter-spacing:-1.8px;margin:8px 0 13px}.home-lead{font-size:20px}.home-description{font-size:12px}.home-mark{width:70px;height:70px;border-radius:12px}.home-mark img{width:56px;height:56px;border-radius:8px}.home-panel{padding-top:30px}.home-next{margin-top:12px}}
+
+/* Institutional logo strip on Home only. Preserve marks without recoloring. */
+.home-universities{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:22px 0 4px}
+.home-university{display:flex;align-items:center;justify-content:center;min-width:0;min-height:98px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#fff;transition:border-color .15s,transform .15s}
+.home-university:hover{border-color:var(--line-strong);transform:translateY(-2px)}
+.home-university img{display:block;width:auto;max-width:100%;height:auto;max-height:62px;object-fit:contain}
+.home-university:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:860px){.home-universities{gap:9px}.home-university{min-height:84px;padding:11px}.home-university img{max-height:55px}}
+@media(max-width:560px){.home-universities{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.home-university{min-height:76px;padding:10px}.home-university img{max-height:52px}}
