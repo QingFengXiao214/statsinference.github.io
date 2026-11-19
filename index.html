@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#f5f1ec">
-<meta name="description" content="Statistical Inference Arena — leaderboards across ten research domains. Compare bias, variance, RMSE, mean interval length, coverage and time.">
-<meta property="og:title" content="Statistical Inference Arena">
+<meta name="description" content="StatArena — The Statistical Intelligence Arena. Statistical inference benchmarks across ten research domains.">
+<meta property="og:title" content="StatArena — The Statistical Intelligence Arena">
 <meta property="og:description" content="Accuracy, uncertainty and efficiency. Independent statistical inference leaderboards across ten domains.">
 <meta property="og:image" content="https://statsinference.github.io/assets/statsarena-logo.webp">
 <meta property="og:url" content="https://statsinference.github.io/">
-<title>Statistical Inference Arena</title>
+<title>StatArena — The Statistical Intelligence Arena</title>
 <link rel="canonical" href="https://statsinference.github.io/">
 <link rel="icon" type="image/webp" href="assets/statsarena-logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,24 +24,34 @@
 <link rel="stylesheet" href="assets/comparison-charts.css?v=counterfactual-notation-20261117">
 <link rel="stylesheet" href="assets/domain-illustrations.css?v=counterfactual-notation-20261117">
 <link rel="stylesheet" href="assets/arena-overview.css?v=counterfactual-notation-20261117">
+<link rel="stylesheet" href="assets/home.css?v=statarena-home-20261119">
 </head>
 <body>
-<a class="skip" href="#main-panel">Skip to leaderboard</a>
+<a class="skip" href="#content-start">Skip to content</a>
 <button class="scrim" id="menu-scrim" aria-label="Close navigation" hidden></button>
 <aside class="sidebar" id="sidebar" aria-label="Site navigation">
-<a class="brand" href="#domain=ate"><img class="brand-logo" src="assets/statsarena-logo.webp" alt="Statistical Inference Arena logo" width="42" height="42"><span class="brand-name">Statistical<br>Inference Arena<small>ESTIMATION · UNCERTAINTY</small></span></a>
-<a class="side-home" href="#main-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V4m6 15v-7M2 21h20"/></svg>Leaderboards<span>↗</span></a>
+<a class="brand" href="#home"><img class="brand-logo" src="assets/statsarena-logo.webp" alt="StatArena logo" width="42" height="42"><span class="brand-name">StatArena<small>STATISTICAL INTELLIGENCE</small></span></a>
+<a class="side-home" id="sidebar-home" href="#home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9m6 10V4m6 15v-7M2 21h20"/></svg>Home<span>↗</span></a>
 <div class="nav-caption">RESEARCH DOMAINS <span>10</span></div>
 <div id="tabs" role="tablist" aria-label="Research domains" aria-orientation="vertical"></div>
 <div class="sidebar-bottom"><div class="nav-caption">RESOURCES</div>
 <a href="#methodology"><span>Result comparisons</span><span>↗</span></a>
 <a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer"><span>Website on GitHub</span><span>↗</span></a>
-<div class="sidebar-foot"><span>Statistical Inference Arena</span><span>Research benchmark</span></div>
+<div class="sidebar-foot"><span>StatArena</span><span>Research benchmark</span></div>
 </div></aside>
 <div class="page">
-<header class="topbar"><div class="topbar-left"><button class="menu-button" id="menu-btn" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button><span>Leaderboards</span><span class="breadcrumb-sep">/</span><span class="muted">Statistical inference</span></div><div class="topbar-actions"><button class="theme-toggle" id="theme-btn" aria-label="Switch to dark theme" title="Switch color theme">◐</button><button type="button" class="method-submit-button" id="submit-method-btn" aria-haspopup="dialog" aria-controls="method-submit-dialog" aria-expanded="false">Submit your method</button></div></header>
-<div class="content">
-<section class="page-heading with-domain-illustration" aria-label="About Statistical Inference Arena"><div><h1>Statistical<br><em>Inference Arena.</em></h1><p class="arena-introduction">A benchmark for statistical inference. Explore how methods compare in accuracy, uncertainty, and computational efficiency across research areas.</p></div><figure id="domain-illustration" class="domain-figure" aria-labelledby="domain-figure-title" hidden></figure></section>
+<header class="topbar"><div class="topbar-left"><button class="menu-button" id="menu-btn" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="false">☰</button><span id="topbar-section">Home</span><span class="breadcrumb-sep">/</span><span class="muted" id="topbar-context">StatArena</span></div><div class="topbar-actions"><button class="theme-toggle" id="theme-btn" aria-label="Switch to dark theme" title="Switch color theme">◐</button><button type="button" class="method-submit-button" id="submit-method-btn" aria-haspopup="dialog" aria-controls="method-submit-dialog" aria-expanded="false">Submit your method</button></div></header>
+<div class="content" id="content-start" tabindex="-1">
+<section id="home" class="home-panel" aria-labelledby="home-title" tabindex="-1">
+<div class="home-hero">
+  <div class="home-hero-copy">
+    <div class="home-kicker">THE STATISTICAL INTELLIGENCE ARENA</div>
+    <h1 id="home-title">StatArena</h1>
+    <p class="home-lead">An open academic benchmark for evaluating statistical intelligence in AI.</p>
+    <p class="home-description">Starting with causal inference, StatArena brings together statistical tasks, data-generating processes, and common evaluation protocols to compare methods in accuracy, uncertainty, and computational efficiency.</p>
+  </div>
+  <div class="home-mark" aria-hidden="true"><img src="assets/statsarena-logo.webp" alt="" width="160" height="160"></div>
+</div>
 <section class="arena-overview" aria-label="Current leaderboard overview">
 <div id="arena-overview-stats" class="arena-stat-grid" aria-live="polite">
 <article class="arena-stat"><strong data-overview-stat="domains">—</strong><span>Research areas</span></article>
@@ -51,6 +61,10 @@
 </div>
 <p class="arena-overview-note">Counts reflect reviewed estimand types in current results; one type can appear in multiple research areas.</p>
 </section>
+<div class="home-next"><span>EXPLORE RESEARCH DOMAINS</span><p>Select a domain in the left navigation to explore its leaderboard and evaluation results.</p></div>
+</section>
+<div id="domain-view" hidden>
+<section class="page-heading with-domain-illustration" aria-label="About StatArena"><div><h1>StatArena</h1><p class="arena-introduction">The Statistical Intelligence Arena</p></div><figure id="domain-illustration" class="domain-figure" aria-labelledby="domain-figure-title" hidden></figure></section>
 <span id="release-status" hidden></span>
 <p id="release-description" role="status" hidden></p>
 <main id="main-panel" role="tabpanel" aria-labelledby="tab-ate" tabindex="-1">
@@ -73,14 +87,15 @@
 <article class="comparison-card" aria-labelledby="rmse-time-title"><h3 id="rmse-time-title">RMSE vs Time</h3><div id="rmse-time-chart" class="comparison-plot"></div></article>
 <article class="comparison-card" aria-labelledby="coverage-length-title"><h3 id="coverage-length-title">Coverage vs Mean Interval Length</h3><div id="coverage-length-chart" class="comparison-plot"></div></article>
 </section>
-<footer><a class="footer-brand" href="#domain=ate"><img src="assets/statsarena-logo.webp" alt="" width="24" height="24">Statistical Inference Arena</a><a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer">Website source ↗</a></footer>
+</div>
+<footer><a class="footer-brand" href="#home"><img src="assets/statsarena-logo.webp" alt="" width="24" height="24">StatArena</a><a href="https://github.com/Statsinference/statsinference.github.io" target="_blank" rel="noopener noreferrer">Website source ↗</a></footer>
 </div></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 <noscript><p class="noscript">Enable JavaScript to view the domain leaderboards. Source-reported results are available for Average Treatment Effect, Conditional Average Treatment Effect, Causal Mediation Analysis, Instrumental Variables, Proximal Causal Inference and Difference-in-Differences. <a href="data/results.json">Read the results data</a>.</p></noscript>
 <script src="assets/test-references.js?v=counterfactual-notation-20261117"></script>
-<script src="assets/test-view.js?v=mediation-reviewed-20261118"></script>
+<script src="assets/test-view.js?v=statarena-home-20261119"></script>
 <script src="assets/arena-overview.js?v=stat-cards-20261117"></script>
-<script src="assets/layout.js?v=counterfactual-notation-20261117"></script>
+<script src="assets/layout.js?v=statarena-home-20261119"></script>
 <script src="assets/submit-method.js?v=mediation-challenge-20261118"></script>
 <script src="assets/comparison-charts.js?v=counterfactual-notation-20261117"></script>
 <script src="assets/domain-illustrations.js?v=counterfactual-notation-20261117"></script>

@@ -1,0 +1,16 @@
+/* Home-only layout; the existing domain leaderboards and theme palette stay unchanged. */
+.home-panel{min-height:calc(100vh - 150px);padding:56px 0 30px}
+.home-hero{display:flex;align-items:center;justify-content:space-between;gap:48px;padding:18px 0 36px}
+.home-hero-copy{max-width:670px}
+.home-kicker,.home-next>span{display:block;font:10px/1.6 var(--mono);letter-spacing:.075em;color:var(--quiet)}
+.home-hero h1{font:400 clamp(56px,6vw,90px)/1.1 var(--display);letter-spacing:-2.5px;margin:12px 0 18px}
+.home-lead{max-width:40rem;font:400 clamp(19px,2.1vw,25px)/1.45 var(--display);color:var(--fg)}
+.home-description{max-width:40rem;margin:14px 0 0;font:13px/1.85 var(--body);color:var(--muted)}
+.home-mark{width:212px;height:212px;flex:none;display:flex;justify-content:center;align-items:center;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.home-mark img{width:160px;height:160px;object-fit:contain;border-radius:14px}
+.home-panel .arena-overview{padding-top:20px;border-top:1px solid var(--line)}
+.home-next{padding:28px 0 15px;margin-top:20px;border-top:1px solid var(--line)}
+.home-next p{font:13px/1.75 var(--body);color:var(--muted);margin-top:8px;max-width:50rem}
+.side-home.on{background:var(--hover);border-color:var(--line-strong);font-weight:600}
+@media(max-width:860px){.home-panel{padding-top:28px;min-height:calc(100vh - 100px)}.home-hero{gap:24px;padding-bottom:26px}.home-mark{width:150px;height:150px}.home-mark img{width:116px;height:116px}}
+@media(max-width:560px){.home-hero{gap:12px;align-items:flex-start}.home-kicker{font-size:9px}.home-hero h1{font-size:50px;letter-spacing:-1.8px;margin:8px 0 13px}.home-lead{font-size:20px}.home-description{font-size:12px}.home-mark{width:70px;height:70px;border-radius:12px}.home-mark img{width:56px;height:56px;border-radius:8px}.home-panel{padding-top:30px}.home-next{margin-top:12px}}

@@ -16,7 +16,7 @@ const menuButton=document.getElementById('menu-btn'),sidebar=document.getElement
 function setMenu(open){sidebar.classList.toggle('open',open);menuButton.setAttribute('aria-expanded',String(open));scrim.hidden=!open;document.body.style.overflow=open?'hidden':'';}
 menuButton.addEventListener('click',()=>setMenu(!sidebar.classList.contains('open')));
 scrim.addEventListener('click',()=>{setMenu(false);menuButton.focus();});
-sidebar.addEventListener('click',e=>{if(e.target.closest('a,[data-t]')&&matchMedia('(max-width:860px)').matches){setMenu(false);document.getElementById('main-panel').focus({preventScroll:true});}});
+sidebar.addEventListener('click',e=>{if(e.target.closest('a,[data-t]')&&matchMedia('(max-width:860px)').matches){setMenu(false);(e.target.closest('a[href="#home"]')?menuButton:document.getElementById('main-panel')).focus({preventScroll:true});}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sidebar.classList.contains('open')){setMenu(false);menuButton.focus();}});
 window.addEventListener('resize',()=>{if(!matchMedia('(max-width:860px)').matches)setMenu(false);});
 document.getElementById('tabs').addEventListener('keydown',e=>{

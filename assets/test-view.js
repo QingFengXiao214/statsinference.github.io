@@ -25,6 +25,7 @@ const METRICS=[
 ];
 const metricKeys=METRICS.map(m=>m.key);
 let task='ate',family='all',query='',testSuites=[],loadError='',loaded=false;
+let pageMode='home';
 let rankMetric='rmse',sortDirection=1;
 let reviewedError=false;
 const expandedMethods=new Set();
@@ -278,6 +279,16 @@ function renderDefinition(){
  host.hidden=!host.textContent.trim();
 }
 function render(){
+ const domainPage=pageMode==='domain';
+ $('#home').hidden=domainPage;
+ $('#domain-view').hidden=!domainPage;
+ const homeNav=$('#sidebar-home');
+ homeNav.classList.toggle('on',!domainPage);
+ if(domainPage)homeNav.removeAttribute('aria-current');
+ else homeNav.setAttribute('aria-current','page');
+ $('#topbar-section').textContent=domainPage?'Leaderboards':'Home';
+ $('#topbar-context').textContent=domainPage?DOMAINS.find(d=>d.id===task).name:'StatArena';
+ document.body.dataset.pageMode=pageMode;
  const d=DOMAINS.find(d=>d.id===task);
  const other=$('#fam-chips [data-fam="other"]');
  if(current()?.rows.some(r=>r.family==='other')){
@@ -287,7 +298,7 @@ function render(){
    $('#fam-chips').append(chip);
   }
  }else if(other)other.remove();
- for(const b of document.querySelectorAll('[data-t]')){const on=b.dataset.t===task;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
+ for(const b of document.querySelectorAll('[data-t]')){const on=domainPage&&b.dataset.t===task;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
  for(const b of document.querySelectorAll('[data-fam]')){const on=b.dataset.fam===family;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));}
  $('#main-panel').setAttribute('aria-labelledby','tab-'+task);$('#hero-title').textContent=d.name;$('#hero-sub').textContent=d.desc;renderDefinition();
  $('#benchmark-card-link').hidden=task!=='mediation';
@@ -301,9 +312,19 @@ function render(){
  $('#registry-link').href='https://github.com/Statsinference/stats-inference-arena/blob/main/dgp-submissions/registry/by-domain/'+task+'.md';
  renderMetrics();document.body.dataset.testView=loaded?'ready':'loading';
 }
-function readHash(){const p=new URLSearchParams(location.hash.slice(1));if(DOMAINS.some(d=>d.id===p.get('domain')))task=p.get('domain');}
+function readHash(){
+ const raw=location.hash.slice(1),p=new URLSearchParams(raw),domain=p.get('domain');
+ if(DOMAINS.some(d=>d.id===domain)){task=domain;pageMode='domain';}
+ else if(!raw||raw==='home'){pageMode='home';}
+ else if(['methodology','table','main-panel'].includes(raw)){pageMode='domain';}
+ else pageMode='home';
+}
 function writeHash(){const p=new URLSearchParams({domain:task});try{history.replaceState(null,'','#'+p);}catch(_){}}
-function chooseTask(id){if(!DOMAINS.some(d=>d.id===id))return;task=id;family='all';query='';$('#q').value='';writeHash();render();}
+function chooseTask(id){
+ if(!DOMAINS.some(d=>d.id===id))return;
+ task=id;pageMode='domain';family='all';query='';$('#q').value='';
+ writeHash();render();window.scrollTo({top:0,behavior:'instant'});
+}
 const domainGroups=[{id:'causal',label:'Causal Inference',domains:DOMAINS.slice(0,6)},{id:'other',label:'Others',domains:DOMAINS.slice(6)}];
 $('#tabs').innerHTML=domainGroups.map(g=>`<div class="domain-group" role="group" aria-labelledby="domain-group-${g.id}"><div id="domain-group-${g.id}" class="domain-group-heading">${esc(g.label)}</div>${g.domains.map(d=>`<button class="tab" id="tab-${d.id}" data-t="${d.id}" role="tab" aria-controls="main-panel" aria-selected="false" tabindex="-1">${esc(d.name)}</button>`).join('')}</div>`).join('');
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b)chooseTask(b.dataset.t);});
@@ -326,12 +347,18 @@ $('#export-btn').addEventListener('click',()=>{
  const ranks=rankMap();
  const rr=sortedRows().map(r=>({...r,method:r.family==='classical'?'Baseline':r.method,rank:ranks.get(r),domain:task,evaluation:'Test',approximate_metrics:r.approximate_metrics.join(';'),source_file:r.status==='reviewed'?'https://github.com/Statsinference/statsinference.github.io/issues/'+r.issue_number:s.source.file,aggregation:s.aggregation,variance_definition:s.variance_definition,timing:r.status==='reviewed'?(finite(r.time_s)?'Mean per table; protocol in linked submission':'Not reported'):s.timing}));
  const text=[keys.join(','),...rr.map(r=>keys.map(k=>csvCell(r[k])).join(','))].join('\r\n');
- const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='statistical-inference-arena-'+task+'-test.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+ const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='statarena-'+task+'-test.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 });
 let toastTimer;function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{$('#toast').hidden=true;},4500);}
 function theme(value){document.documentElement.dataset.theme=value;$('#theme-btn').setAttribute('aria-label',value==='dark'?'Switch to light theme':'Switch to dark theme');}
 $('#theme-btn').addEventListener('click',()=>theme(document.documentElement.dataset.theme==='dark'?'light':'dark'));
-window.addEventListener('hashchange',()=>{readHash();render();});
+window.addEventListener('hashchange',()=>{
+ readHash();render();
+ const anchor=location.hash.slice(1);
+ if(anchor==='home'||anchor.startsWith('domain='))window.scrollTo({top:0,behavior:'instant'});
+ else if(['table','methodology','main-panel'].includes(anchor))
+  requestAnimationFrame(()=>document.getElementById(anchor)?.scrollIntoView({block:'start'}));
+});
 window.ArenaTestView=Object.freeze({aggregateRows,getSuites:()=>testSuites,metrics:metricKeys});
 readHash();render();
 async function fetchData(path){
