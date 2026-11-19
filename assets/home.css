@@ -28,9 +28,9 @@
 .home-panel .home-ambient{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;overflow:hidden;color:var(--accent);opacity:.85}
 .home-panel>.home-hero,.home-panel>.arena-overview,.home-panel>.home-next,.home-panel>.home-universities{position:relative;z-index:1}
 .home-tagline{font:italic 400 clamp(25px,2.45vw,34px)/1.3 var(--display);letter-spacing:-.45px;color:var(--accent);margin:-8px 0 21px}
-.home-ambient .home-wave-line{fill:none;stroke:currentColor;stroke-width:1.45;stroke-linecap:round;opacity:.21;vector-effect:non-scaling-stroke}
-.home-ambient .home-wave-b .home-wave-line{opacity:.15;stroke-width:1.1}
-.home-ambient .home-wave-c .home-wave-line{opacity:.12;stroke-width:1.2}
+.home-ambient .home-wave-line{fill:none;stroke:currentColor;stroke-width:1.55;stroke-linecap:round;opacity:.32;vector-effect:non-scaling-stroke}
+.home-ambient .home-wave-b .home-wave-line{opacity:.24;stroke-width:1.3}
+.home-ambient .home-wave-c .home-wave-line{opacity:.20;stroke-width:1.35}
 .home-ambient .home-moving-dot{fill:currentColor;opacity:.45}
 .home-ambient .home-moving-dot-faint{opacity:.22}
 .home-ambient .home-scatter{opacity:.19;animation:home-point-float 17s ease-in-out infinite alternate}
@@ -38,7 +38,7 @@
 .home-ambient .home-wave-b{animation:home-wave-drift-b 23s ease-in-out infinite alternate}
 .home-ambient .home-wave-c{animation:home-wave-drift-c 27s ease-in-out infinite alternate}
 :root[data-theme=dark] .home-panel .home-ambient{opacity:.78}
-:root[data-theme=dark] .home-ambient .home-wave-line{stroke-width:1.3;opacity:.27}
+:root[data-theme=dark] .home-ambient .home-wave-line{stroke-width:1.4;opacity:.34}
 :root[data-theme=dark] .home-ambient .home-scatter{opacity:.26}
 @keyframes home-wave-drift-a{from{transform:translate(0,7px)}to{transform:translate(17px,-12px)}}
 @keyframes home-wave-drift-b{from{transform:translate(-11px,-8px)}to{transform:translate(9px,13px)}}
