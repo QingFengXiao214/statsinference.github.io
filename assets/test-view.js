@@ -286,7 +286,7 @@ function render(){
  homeNav.classList.toggle('on',!domainPage);
  if(domainPage)homeNav.removeAttribute('aria-current');
  else homeNav.setAttribute('aria-current','page');
- $('#topbar-section').textContent=domainPage?'Leaderboards':'Home';
+ $('#topbar-section').textContent=domainPage?'Leaderboards':'Homepage';
  $('#topbar-context').textContent=domainPage?DOMAINS.find(d=>d.id===task).name:'StatArena';
  document.body.dataset.pageMode=pageMode;
  const d=DOMAINS.find(d=>d.id===task);
