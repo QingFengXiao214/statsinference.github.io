@@ -28,6 +28,8 @@ HEADINGS = ['Rank', 'Method', 'Bias', 'Variance', 'RMSE', 'Mean interval length'
 DOMAINS = ['ate', 'cate', 'mediation', 'iv', 'proximal', 'did_sc',
            'nonparametric_regression', 'quantile', 'semi_supervised', 'missing_data']
 COMING_SOON = set(DOMAINS[-4:])
+BENCHMARK_CARDS = {'ate': 'ate/', 'cate': 'cate/', 'mediation': 'mediation/',
+                   'iv': 'iv/', 'proximal': 'proximal/', 'did_sc': 'did/'}
 EXPECTED = {
     'ate': [[.0119,.0097,.1114,.2599,.7763,1.089],[-.0167,.0137,.1284,.5897,.9675,90.490]],
     'cate': [[.0143,.0480,.2966,5.8471,1.,.219],[-.0139,.1560,.5522,1.2689,.8484,55.501]],
@@ -54,6 +56,7 @@ if not LOCAL:
              'assets/arena-overview.js', 'assets/arena-overview.css',
              'data/results.json', 'data/mediation-fivefold.json', 'data/mediation-reviewed.json',
              'data/iv-v03.json', 'data/unified-test-2026-11-16.json', 'data/dgp-overview.json']
+    paths += [directory + 'index.html' for directory in BENCHMARK_CARDS.values()]
     for attempt in range(40):
         try:
             if all(urllib.request.urlopen(BASE + path + '?verify=' + SHA + '-' + str(attempt), timeout=15).read()
@@ -453,9 +456,8 @@ with sync_playwright() as p:
         page.locator(f'[data-t="{domain}"]').click()
         assert page.locator(f'#tab-{domain}').get_attribute('aria-selected') == 'true'
         benchmark_card = page.locator('#benchmark-card-link')
-        assert benchmark_card.is_visible() == (domain == 'mediation')
-        if domain == 'mediation':
-            assert benchmark_card.get_attribute('href') == 'mediation/'
+        assert benchmark_card.is_visible() == (domain in BENCHMARK_CARDS)
+        assert benchmark_card.get_attribute('href') == BENCHMARK_CARDS.get(domain)
         page.wait_for_function('(domain)=>document.querySelector("#domain-illustration")?.dataset.domain===domain', arg=domain)
         assert page.locator('#domain-illustration svg').get_attribute('role') == 'img'
         assert page.locator('#domain-illustration svg desc').text_content()
