@@ -12,6 +12,7 @@ const DOMAINS = [
  {id:'semi_supervised',name:'Semi-Supervised Inference',desc:'Statistical inference using labeled and unlabeled observations.'},
  {id:'missing_data',name:'Missing Data',desc:'Inference under each task’s declared observation and missingness mechanisms.'}
 ];
+const BENCHMARK_CARDS={ate:'ate/',cate:'cate/',mediation:'mediation/',iv:'iv/',proximal:'proximal/',did_sc:'did/'};
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const finite=v=>typeof v==='number'&&Number.isFinite(v);
@@ -301,7 +302,11 @@ function render(){
  for(const b of document.querySelectorAll('[data-t]')){const on=domainPage&&b.dataset.t===task;b.classList.toggle('on',on);b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;}
  for(const b of document.querySelectorAll('[data-fam]')){const on=b.dataset.fam===family;b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));}
  $('#main-panel').setAttribute('aria-labelledby','tab-'+task);$('#hero-title').textContent=d.name;$('#hero-sub').textContent=d.desc;renderDefinition();
- $('#benchmark-card-link').hidden=task!=='mediation';
+ const benchmarkCardLink=$('#benchmark-card-link');
+ const benchmarkCard=BENCHMARK_CARDS[task];
+ benchmarkCardLink.hidden=!benchmarkCard;
+ if(benchmarkCard)benchmarkCardLink.setAttribute('href',benchmarkCard);
+ else benchmarkCardLink.removeAttribute('href');
  const comingSoon=loaded&&!loadError&&!current()&&['nonparametric_regression','quantile','semi_supervised','missing_data'].includes(task);
  $('#coming-soon').hidden=!comingSoon;
  document.querySelector('.test-controls').hidden=comingSoon;
