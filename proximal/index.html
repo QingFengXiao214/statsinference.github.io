@@ -20,7 +20,7 @@
 <main class="wrap">
   <section class="track-hero">
     <h1>Proximal Causal Inference</h1>
-    <p>Given one observational study with proxies for an unmeasured confounder, estimate the conditional average treatment effect (CATE) at a supplied covariate query. Return one point estimate and a two-sided 95% confidence interval per study.</p>
+    <p>Given one observational study with proxies for an unmeasured confounder, estimate the conditional average treatment effect (CATE) at a supplied covariate query. Return one point estimate and a two-sided 95% interval per study.</p>
     <span class="target-formula" aria-label="The treatment effect at x star is the expected difference between treated and untreated outcomes conditional on X equaling x star">τ(<i>x</i><sup>*</sup>) = <i>E</i>[<i>Y</i>(1) − <i>Y</i>(0) | <i>X</i> = <i>x</i><sup>*</sup>]</span>
     <div class="track-actions">
       <a class="primary" href="https://huggingface.co/datasets/wytzzka/StatsInference-Arena-Proximal/resolve/2027f348fa54db3db9dd006e2f4d7dcf55282b22/proximal-starter-v1.zip">Download starter kit</a>
@@ -81,7 +81,7 @@ python score.py --truth dev/truth.csv --predictions dev_predictions.csv</code></
     <h2>Official evaluation</h2>
     <p>Fix your method before using the official inputs. The release preserves the 2,000 studies from the November 16 evaluation. Each study has its own sampled configuration and query. Cross-fitted methods and methods using context partitions should preserve row order and use the supplied treatment-stratified assignments in <code>folds/&lt;table_id&gt;.csv</code>.</p>
     <p>Each study gets equal weight. Bias and RMSE use the signed point-estimation errors. Variance is the sample variance of those errors across studies, with denominator 1,999. Coverage is the fraction of intervals containing the true effect. Mean interval length averages the difference between upper and lower bounds.</p>
-    <p>Published results are available in original and normalized units. For normalized metrics, divide each study’s error and interval length by the sample standard deviation of its observed outcome before aggregation. Coverage and time use the same values in both views. Report warm runtime per study, including point estimation and interval construction with all bootstrap refits. Include the hardware used.</p>
+    <p>The leaderboard displays normalized error and interval length metrics. Divide each study’s error and interval length by the sample standard deviation of its observed outcome before aggregation. The published source data also include results in original outcome units. Coverage and time have the same values at both scales. Report warm runtime per study, including point estimation and interval construction with all bootstrap refits. Include the hardware used. <a href="https://github.com/Statsinference/statsinference.github.io/blob/main/data/unified-test-2026-11-16.json">View results in original units</a></p>
     <p>The reported reference comparison uses the frozen ProximalFM checkpoint and a random forest–based proximal bridge estimator with bootstrap intervals. <a href="../#domain=proximal">View published results</a> · <a href="https://huggingface.co/christophemuller/ProximalFM">ProximalFM checkpoint</a></p>
   </section>
 
@@ -89,7 +89,7 @@ python score.py --truth dev/truth.csv --predictions dev_predictions.csv</code></
     <h2>Submission format</h2>
     <p>Fill <code>predictions_template.csv</code> with one row for each official study. Keep the supplied IDs and return the effect and interval endpoints in original outcome units. Use finite values, with the lower endpoint at or below the upper endpoint.</p>
     <pre><code>table_id,estimate,ci_lower,ci_upper</code></pre>
-    <p>Share the completed predictions and method details with the Arena maintainers for scoring. Include the estimator, interval construction, training-data exposure and any timing details. The leaderboard’s <strong>Submit your method</strong> button accepts a public Hugging Face model link.</p>
+    <p>Maintainers score predictions against the retained effects. Include the estimator, interval construction, training-data exposure and any timing details when sharing predictions. To share a Hugging Face model link, use <strong>Submit your method</strong> on the leaderboard and confirm the public GitHub issue.</p>
   </section>
   <div class="track-foot"><a href="../#domain=proximal">Back to the proximal leaderboard</a></div>
 </main>

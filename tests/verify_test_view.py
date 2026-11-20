@@ -294,8 +294,7 @@ def assert_overview(page, suites):
     def valid(row):
         return any(isinstance(row.get(k), (int, float)) and not isinstance(row.get(k), bool)
                    and math.isfinite(row[k]) for k in KEYS)
-    # Source-bound categories reflect the currently displayed releases. IV's
-    # LATE type is user-confirmed; its original machine-readable target is null.
+    # Source-bound categories reflect the currently displayed releases.
     by_suite = {
         'ate-fixed-collection-report':'ATE',
         'cate-fixed-collection-report':'CATE',
