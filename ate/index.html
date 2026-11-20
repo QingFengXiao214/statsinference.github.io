@@ -24,7 +24,7 @@
 <div class="datasets">
 <article><h3>Public starter kit</h3><p>48 training, 16 development and 32 reference test studies with labeled effects, a generator, starter baseline, scoring script and example predictions.</p><a href="https://huggingface.co/datasets/fuyao11/StatsInference-Arena-ATE-CATE/resolve/v1.2.2/ate-cate-starter-v1.zip">Download starter ZIP</a></article>
 <article><h3>Official reference inputs</h3><p>2,000 observed studies with variable types, ATE-specific five-fold assignments, and a blank ATE prediction template.</p><a href="https://huggingface.co/datasets/fuyao11/StatsInference-Arena-ATE-CATE/resolve/v1.2.2/ate-cate-official-inputs-v1.zip">Download official inputs ZIP</a></article>
-<article><h3>Data-generating designs</h3><p>The starter covers a continuous and a binary outcome design. The official suite draws on 13 source families.</p><a href="https://huggingface.co/datasets/fuyao11/StatsInference-Arena-ATE-CATE/blob/v1.2.2/DGP.md">Read the mechanism definitions</a></article>
+<article><h3>Data-generating designs</h3><p>The starter covers a continuous and a binary outcome design. The official suite draws on 13 source families.</p><a href="https://huggingface.co/datasets/fuyao11/StatsInference-Arena-ATE-CATE/blob/v1.2.2/DGP.md">Read the starter mechanism definitions</a></article>
 </div>
 <details><summary>How were the starter studies generated?</summary>
 <p>The starter adapts Nie–Wager Setup A and a Benkeser et al. design. Train, development and test use disjoint parameter configurations. Each configuration yields two independently sampled tables and shares a fixed CATE query across the pair.</p>
@@ -45,7 +45,7 @@ python score.py --truth dev/truth_ate.csv --predictions dev_predictions_ate.csv 
 
 <section id="evaluation" class="track-section"><h2>Official evaluation</h2>
 <p>Freeze your method before evaluating the 2,000 studies. They come from 1,000 parameter configurations with two independent draws per configuration. Each study has a stable table ID, 2–10 covariates and a continuous or binary outcome. If you cross-fit, use the five treatment-stratified assignments in <code>folds/ATE/</code> and preserve observation order.</p>
-<p>The input ZIP omits population effects, generation parameters and replicate pairings. The same studies and their effect labels appeared in earlier public releases. The current collection is a fixed reference for comparison and reproducibility. <a href="https://huggingface.co/datasets/fuyao11/StatsInference-Arena-ATE-CATE/blob/v1.1/README.md">Read the release history</a></p>
+<p>The input ZIP omits population effects, generation parameters and an explicit replicate-pairing map. The same studies and their effect labels appeared in earlier public releases. The current collection is a fixed reference for comparison and reproducibility. <a href="https://huggingface.co/datasets/fuyao11/StatsInference-Arena-ATE-CATE/blob/v1.1/README.md">Read the release history</a></p>
 <p>For submitted predictions, signed bias, RMSE, empirical 95% coverage and mean interval length give each study equal weight. The variance metric uses the paired studies to estimate within-configuration sampling variance. Report inference time as mean seconds per study with the hardware used. Include point estimation and interval construction, including any bootstrap, and exclude model loading and warm-up.</p>
 <p>In the existing leaderboard summary, the original evaluation report gives each of the 13 data-generating families equal weight. <a href="../#domain=ate">View ATE results</a></p>
 </section>
@@ -53,7 +53,7 @@ python score.py --truth dev/truth_ate.csv --predictions dev_predictions_ate.csv 
 <section id="submit" class="track-section"><h2>Submit a method</h2>
 <p>For ATE, fill <code>predictions_ate_template.csv</code> with one row per official study. Preserve each <code>table_id</code>, use finite numeric values and ensure <code>ci_lower &lt;= ci_upper</code>.</p>
 <pre><code>table_id,estimate,ci_lower,ci_upper</code></pre>
-<p>For a joint ATE and CATE submission, send the completed ATE and CATE prediction CSVs to the benchmark maintainers for scoring. Include your estimator, interval construction, training-data exposure and timing hardware. Use the leaderboard’s <strong>Submit your method</strong> button to share a public Hugging Face model link for review.</p>
+<p>The release asks for both the completed ATE and CATE prediction CSVs for maintainer scoring. Include your estimator, interval construction, training-data exposure and timing hardware. To share a Hugging Face model link, use <strong>Submit your method</strong> on the leaderboard and confirm the public GitHub issue.</p>
 <div class="track-actions"><a class="primary" href="../#domain=ate">Open the ATE leaderboard</a><a href="../cate/#submit">CATE submission instructions</a></div>
 </section>
 <div class="track-foot"><a href="../#domain=ate">Back to the ATE leaderboard</a> · Data release v1.2.2</div>

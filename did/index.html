@@ -66,7 +66,8 @@ python score.py dev/truth.csv predictions.csv</code></pre>
 <h2>Official evaluation</h2>
 <p>Freeze the method before opening the public scoring archive. If the method uses cross-fitting, keep the supplied five treatment-stratified folds for the original fit and preserve row order. Row indices start at 0 and fold labels run from 1 to 5.</p>
 <p>The scorer gives each study equal weight. Bias is the mean of estimate minus population ATT, RMSE is the root mean squared error, and error variance is the sample variance of those errors across studies with denominator 1,999. Coverage counts the share of intervals containing the true ATT including either endpoint. Mean interval length averages upper minus lower.</p>
-<p>In the published comparison, PFN-DiD and the random-forest comparator estimate treatment propensities and the mean outcome change under control, then apply the same doubly robust DiD score. PFN-DiD uses an influence-function standard error. The forest uses the standard deviation from 50 full row-bootstrap refits. Both report normal intervals. <a href="https://huggingface.co/lisuo/PFN-DiD/tree/b7ab973ce6142e3bf34e11aa6db66b3bc5fc5c6a">Evaluated PFN-DiD checkpoint</a> · <a href="../#domain=did_sc">View leaderboard results</a></p>
+<p>In the published comparison, PFN-DiD and the random-forest comparator estimate treatment propensities and the mean outcome change under control, then apply the same doubly robust DiD score. PFN-DiD uses an influence-function standard error. The forest uses the standard deviation from 50 full row-bootstrap refits, with new folds in each resample. Both report normal intervals. <a href="https://huggingface.co/lisuo/PFN-DiD/tree/b7ab973ce6142e3bf34e11aa6db66b3bc5fc5c6a">Evaluated PFN-DiD checkpoint</a> · <a href="../#domain=did_sc">View leaderboard results</a></p>
+<p>The checkpoint’s model card reports an earlier ID and Source-OOD evaluation. The downloads and leaderboard here use the pooled test.</p>
 </section>
 
 <section id="submit" class="track-section">
@@ -75,7 +76,7 @@ python score.py dev/truth.csv predictions.csv</code></pre>
 <pre><code>table_id,estimate,ci_lower,ci_upper</code></pre>
 <p>Extract the scoring archive and run the scorer using its <code>truth.csv</code> and the completed predictions file.</p>
 <pre><code>python score.py truth.csv predictions.csv</code></pre>
-<p>When sharing results, describe your estimator, interval procedure and data exposure. If you report runtime, include the mean estimation time in seconds per study and the hardware. To share a Hugging Face model for review, use <strong>Submit your method</strong> on the <a href="../#domain=did_sc">Difference-in-Differences leaderboard</a>.</p>
+<p>When sharing results, describe your estimator, interval procedure and data exposure. If you report runtime, include the mean estimation time in seconds per study and the hardware. To share a Hugging Face model link, use <strong>Submit your method</strong> on the leaderboard and confirm the public GitHub issue. <a href="../#domain=did_sc">Open the DiD leaderboard</a></p>
 </section>
 <div class="track-foot"><a href="../#domain=did_sc">Back to the Difference-in-Differences leaderboard</a> · Data release v1</div>
 </main>
